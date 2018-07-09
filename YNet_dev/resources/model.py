@@ -281,7 +281,7 @@ def model_summary(m, input_size):
 
     #(!) no idea what this is doing
     if is_listy(input_size[0]):
-        x = [to_gpu(Variable(torch.rand(2,*in_size))) for in_size in input_size]
+        x = [to_gpu(Variable(torch.rand(2,*in_size))) for in_size in input_size] #(!) modified first arg 3 -> 2
     else: x = [to_gpu(Variable(torch.rand(2,*input_size)))]
     m(*x) #(!) unsure what this is doing, used to not be stored, just executed in orginal code. 
 
