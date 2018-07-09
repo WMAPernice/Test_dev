@@ -1,0 +1,18 @@
+#! /usr/local/bin/python3 
+
+import os
+import yaml
+from subprocess import call
+
+# little bump
+config_file_path = os.getenv('CONFIG_FILE_PATH')
+
+with open(config_file_path, 'r') as file:
+    config = yaml.load(file)
+
+with open(config_file_path, 'w') as file:
+    version = [int(v) for v in config['version'].split('.')]
+    version[-1] += 1
+    config['version'] = '.'.join(str(e) for e in version)
+    yaml.dump(config, file, default_flow_style=False)
+    call(['git', 'add', config_file_path])  # bumps the version for next commit

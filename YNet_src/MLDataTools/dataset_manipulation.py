@@ -1,13 +1,12 @@
 import os
 import random
-import shutil
 import zipfile
 from os.path import \
     basename  # required to use in zipfile.Zipfile.write(file, basename(file)) to avoid completed path to be archived
 from zipfile import ZipFile
+import shutil
 
-
-def shuffle_zip(dataset_name, input_path, output_path, val=False):
+def shuffle_zip(input_path: str, output_path: str, ready_path: str, val=False):
     """
     Function to unzip, shuffle, re-zip and store a set of images at a specified location.
 
@@ -22,26 +21,30 @@ def shuffle_zip(dataset_name, input_path, output_path, val=False):
     -> optionally re-zip or storage in hdf5 object (TODO)
 
     """
+    dataset_name = extract_ds_name(input_path)
+    print("working on ", dataset_name)
 
-    temp_path = os.path.dirname(input_path) + '/TEMP-' + dataset_name  # Path definition, also for later use
-
+    temp_dir = 'TEMP_UNZIP'  # Path definition, also for later use
+    temp_ds_path = temp_dir + '/' + dataset_name
     # unzips files into temp folder
-    if os.path.exists(temp_path):
+    if os.path.exists(temp_dir):
         raise ValueError('temp folder already exists in directory; consider deleting and re-run')
     else:
-        os.makedirs(temp_path)
+        os.makedirs(temp_dir)
 
     zip_ref = zipfile.ZipFile(input_path, 'r')
-    zip_ref.extractall(temp_path)
+    zip_ref.extractall(temp_dir)
     zip_ref.close()
 
     # shuffle images and zip
-    test_addrs, train_addrs = shuffle_images(temp_path)
+    test_addrs, train_addrs = shuffle_images(temp_ds_path)
 
     # zip shuffled images and store at output_path
-    zipup(output_path, test_addrs, train_addrs, dataset_name, temp_path)
+    zipup(output_path, test_addrs, train_addrs, dataset_name, temp_ds_path)
 
-    shutil.rmtree(temp_path)
+    shutil.rmtree(temp_dir)
+
+    ready_data(dataset_name, output_path, ready_path)
 
 
 def shuffle_images(temp_path, shuffle_data=True, val=False):
@@ -117,10 +120,9 @@ def zipup(save_path, test_addrs, train_addrs, dataset_name, temp_path, verbose=F
     print('Files moved to:' + save_path)
 
 
-def ready_data(dataset_name, input_path, output_path, data_struct=['train', 'test']):
+def ready_data(dataset_name: str, input_path, output_path, data_struct=['train', 'test']):
     # To be used with shuffled data in zip files.
     # Extracts these to specified dataset folder in train/test subfolders
-
     ### OPTIONS ###
 
     # choose path where target zip-files are stored
@@ -151,3 +153,9 @@ def ready_data(dataset_name, input_path, output_path, data_struct=['train', 'tes
         zip_ref = zipfile.ZipFile(ZPath + '/' + dataset_name + '_' + i + '_data.zip', 'r')
         zip_ref.extractall(output_path + '/' + i + '/' + dataset_name)
         zip_ref.close()
+
+
+def extract_ds_name(input_path: str) -> str:
+    path = input_path.split('.zip')
+    dataset_name = path[-2].split('/')[-1]
+    return dataset_name
