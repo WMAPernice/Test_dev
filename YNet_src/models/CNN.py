@@ -9,35 +9,19 @@ class CNN(nn.Module):
 
     def __init__(self):
         super().__init__()
-
-        # Input channels = , output channels = 18
-        self.conv1 = torch.nn.Conv2d(2, 18, kernel_size=3, stride=1, padding=1)
-        self.pool = torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-
-        # 4608 input features, 64 output features (see sizing flow below)
-        self.fc1 = torch.nn.Linear(18 * 200 * 200, 64)
-
-        # 64 input features, 10 output features for our 10 defined classes
-        self.fc2 = torch.nn.Linear(64, 4)
+        self.conv1 = nn.Conv2d(in_channels=2, out_channels=6, kernel_size=5)
+        self.pool = nn.MaxPool2d(kernel_size=2,stride=2)
+        self.conv2 = nn.Conv2d(in_channels=6, out_channels=12, kernel_size=5)
+        self.fc1 = nn.Linear(12 * 47 * 47, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, 4)
 
     def forward(self, x):
-        # Computes the activation of the first convolution
-        # Size changes from (3, 32, 32) to (18, 32, 32)
-        x = F.relu(self.conv1(x))
-
-        # Size changes from (18, 32, 32) to (18, 16, 16)
-        x = self.pool(x)
-
-        # Reshape data to input to the input layer of the neural net
-        # Size changes from (18, 16, 16) to (1, 4608)
-        # Recall that the -1 infers this dimension from the other given dimension
-        x = x.view(-1, 2 * 200 * 200)
-
-        # Computes the activation of the first fully connected layer
-        # Size changes from (1, 4608) to (1, 64)
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        print(x.size())
+        x = x.view(140, 12 * 47 * 47)
         x = F.relu(self.fc1(x))
-
-        # Computes the second fully connected layer (activation applied later)
-        # Size changes from (1, 64) to (1, 4)
-        x = self.fc2(x)
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
         return x
