@@ -6,13 +6,15 @@ from skimage.external.tifffile import imread
 from torch.utils.data import DataLoader, Dataset
 from typing import Generator, List
 
+
 class RandomDihedral:
     def __init__(self):
         self.rot_times = np.random.randint(0, 3)
         self.do_flip = np.random.random() < 0.5
 
-    def __call__(self, sample):
-        return np.rot90(sample, self.rot_times) if self.do_flip else sample
+    def __call__(self, x):
+        x = np.rot90(x, self.rot_times)
+        return np.fliplr(x).copy() if self.do_flip else x
 
 
 def trainloader(root_path: str, batch_size: int = 140) -> Generator:
@@ -96,13 +98,19 @@ def get_all_files(root_path: Path, files=[]) -> list:
             files.extend(df)
         elif item.is_file() and '.DS_Store' not in str(item):
             # check if image is square
-            shape = imread(str(item)).shape
-            if shape[-1] == 200 and shape[-2] == 200:
-                files.append(item)
+            files.append(item)
     return list(set(files))
 
 
 if __name__ == '__main__':
-    root = '../../datasets/yeast_ready'
-    path = Path(root)
-    print(len(get_all_files(path)))
+    t = RandomDihedral()
+    m = np.diag([1, 2, 3])
+    print(m)
+    print(t(m))
+
+# [[0 0 1]
+#  [0 2 0]
+#  [3 0 0]]
+# [[0 0 3]
+#  [0 2 0]
+#  [1 0 0]]
