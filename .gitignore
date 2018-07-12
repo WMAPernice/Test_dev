@@ -1,6 +1,7 @@
 datasets
 .ipynb_checkpoints
 .idea
+*_DATA
 __pycache__/
 tensorboardx
 .DS_Store
