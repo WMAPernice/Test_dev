@@ -128,7 +128,7 @@ class Learner():
 
         Args:
             model (Learner):  Any neural architecture for solving a supported problem.
-                Eg. ResNet-34, RNN_Learner etc.
+                Eg. ResNet50-34, RNN_Learner etc.
 
             data (ModelData): An instance of ModelData.
 
@@ -245,7 +245,7 @@ class Learner():
         for application of differential learning rates and weight decays is
         seen in ../.../courses/dl1/fastai/conv_learner.py, using the dict
         'model_meta'. Currently, this seems supported only for convolutional
-        networks such as VGG-19, ResNet-XX etc.
+        networks such as VGG-19, ResNet50-XX etc.
 
         Args:
             lrs (float or list(float)): learning rate(s) for the model

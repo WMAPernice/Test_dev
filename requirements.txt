@@ -1,0 +1,8 @@
+scikit-image
+tensorboardX
+pyyaml
+torch
+torchvision
+graphviz
+requests
+h5py

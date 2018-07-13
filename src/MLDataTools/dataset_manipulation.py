@@ -1,10 +1,14 @@
 import os
 import random
+import shutil
 import zipfile
 from os.path import \
     basename  # required to use in zipfile.Zipfile.write(file, basename(file)) to avoid completed path to be archived
+from pathlib import Path
+from skimage.external import tifffile as tiff
+from typing import List
 from zipfile import ZipFile
-import shutil
+
 
 def shuffle_zip(input_path: str, output_path: str, ready_path: str, val=False):
     """
@@ -159,3 +163,26 @@ def extract_ds_name(input_path: str) -> str:
     path = input_path.split('.zip')
     dataset_name = path[-2].split('/')[-1]
     return dataset_name
+
+
+def delete_non_square(paths: List[Path], size=200):
+    deleted = 0
+    for path in paths:
+        image = tiff.imread(str(path))
+        shape = image.shape
+        if shape[-1] != size or shape[-2] != size:
+            os.remove(str(path))
+            deleted += 1
+    print(f"deleted {deleted} non square images.")
+
+
+def get_files(root_path: Path, files=[]) -> list:
+    for item in root_path.iterdir():
+        if item.is_dir():
+            df = get_files(item)
+            files.extend(df)
+        elif item.is_file() and '.DS_Store' not in str(item):
+            # check if image is square
+
+            files.append(item)
+    return list(set(files))

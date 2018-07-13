@@ -1,0 +1,2 @@
+datasets/*
+!datasets/yeast_ready

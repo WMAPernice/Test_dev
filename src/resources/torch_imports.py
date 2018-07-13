@@ -43,11 +43,11 @@ def _fastai_model(name, paper_title, paper_href):
         return f
     return add_docs_wrapper
 
-@_fastai_model('Inception 4', 'Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning',
+@_fastai_model('Inception 4', 'Inception-v4, Inception-ResNet50 and the Impact of Residual Connections on Learning',
                'https://arxiv.org/pdf/1602.07261.pdf')
 def inception_4(pre): return children(inceptionv4(pretrained=pre))[0]
 
-@_fastai_model('Inception 4', 'Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning',
+@_fastai_model('Inception 4', 'Inception-v4, Inception-ResNet50 and the Impact of Residual Connections on Learning',
                'https://arxiv.org/pdf/1602.07261.pdf')
 def inceptionresnet_2(pre): return load_pre(pre, InceptionResnetV2, 'inceptionresnetv2-d579a627')
 

@@ -61,12 +61,12 @@ class DynamicUnet(nn.Module):
     https://arxiv.org/abs/1505.04597.
 
     Inputs:
-        encoder(nn.Module): Preferably a pretrained model, such as VGG or ResNet
+        encoder(nn.Module): Preferably a pretrained model, such as VGG or ResNet50
         last (bool): Whether to concat only last activation just before a size change
         n_classes (int): Number of classes to output in final step of decoder
 
     Important Note: If architecture directly reduces the dimension of an image as soon as the
-    first forward pass then output size will not be same as the input size, e.g. ResNet.
+    first forward pass then output size will not be same as the input size, e.g. ResNet50.
     In order to resolve this problem architecture will add an additional extra conv transpose
     layer. Also, currently Dynamic Unet expects size change to be H,W -> H/2, W/2. This is
     not a problem for state-of-the-art architectures as they follow this pattern but it should

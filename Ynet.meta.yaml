@@ -1,3 +1,4 @@
+arch: ResNet50
+logdir: ./logs
 name: Ynet
-version: 0.1.0
-tag: initial
+version: 0.1.1

@@ -85,7 +85,7 @@ class ConvnetBuilder():
 
 class ConvLearner(Learner):
     """
-    Class used to train a chosen supported covnet model. Eg. ResNet-34, etc.
+    Class used to train a chosen supported covnet model. Eg. ResNet50-34, etc.
     Arguments:
         data: training data for model
         models: model architectures to base learner

@@ -262,7 +262,7 @@ class InceptionV4(nn.Module):
 
 def inceptionv4(pretrained=True):
     r"""InceptionV4 model architecture from the
-    `"Inception-v4, Inception-ResNet..." <https://arxiv.org/abs/1602.07261>`_ paper.
+    `"Inception-v4, Inception-ResNet50..." <https://arxiv.org/abs/1602.07261>`_ paper.
 
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
