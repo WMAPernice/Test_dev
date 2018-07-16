@@ -101,6 +101,7 @@ def folder_source(path, folder):
     lbl2idx = {lbl:idx for idx,lbl in enumerate(all_lbls)}
     idxs = [lbl2idx[lbl] for lbl in lbls]
     lbl_arr = np.array(idxs, dtype=int)
+    print(lbl2idx)
     return fnames, lbl_arr, all_lbls
 
 def parse_csv_labels(fn, skip_header=True, cat_separator = ' '):
@@ -262,7 +263,7 @@ class FilesDataset(BaseDataset):
         dest = resize_imgs(self.fnames, targ, self.path, new_path) #(!) THIS calls resize_image which uses mode=RGB -> Issues
         return self.__class__(self.fnames, self.y, self.transform, dest)
 
-    def denorm(self,arr):
+    def denorm(self,arr, y=None):
         """Reverse the normalization done to a batch of images.
 
         Arguments:
@@ -270,7 +271,7 @@ class FilesDataset(BaseDataset):
         """
         if type(arr) is not np.ndarray: arr = to_np(arr)
         if len(arr.shape)==3: arr = arr[None]
-        return self.transform.denorm(np.rollaxis(arr,1,4)) ##(!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
+        return self.transform.denorm(np.rollaxis(arr,1,4), y) ##(!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
 
 class FilesArrayDataset(FilesDataset):
     def __init__(self, fnames, y, transform, path):

@@ -148,23 +148,50 @@ class TfmType(IntEnum):
 class Denormalize():
     """ De-normalizes an image, returning it to original format.
     """
-    def __init__(self, m, s):
-        self.m=np.array(m, dtype=np.float32)
-        self.s=np.array(s, dtype=np.float32)
-    def __call__(self, x): return x*self.s+self.m
+    def __init__(self, stats):
+        if isinstance(stats, dict):
+            self.d = stats
+        else:
+            m, s = stats
+            self.m=np.array(m, dtype=np.float32)
+            self.s=np.array(s, dtype=np.float32)
 
+    def __call__(self, x, y=None): 
+        if self.d and y:
+            m ,s = self.d[y]
+            print('denormalied with dict')
+        else:
+            m,s = self.m, self.s
+        return x*s+m
 
 class Normalize():
     """ Normalizes an image to zero mean and unit standard deviation, given the mean m and std s of the original image """
-    def __init__(self, m, s, tfm_y=TfmType.NO):
-        self.m=np.array(m, dtype=np.float32)
-        self.s=np.array(s, dtype=np.float32)
-        self.tfm_y=tfm_y
+    def __init__(self, stats, tfm_y=TfmType.NO):
+        if isinstance(stats, dict):
+            self.d = stats
+            print('its a DICT!')
+        else:
+            m, s = stats
+            self.m=np.array(m, dtype=np.float32)
+            self.s=np.array(s, dtype=np.float32)
+            print('INIT: no dict')
+        self.tfm_y=tfm_y 
 
     def __call__(self, x, y=None):
-        x = (x-self.m)/self.s
+        if self.d and y:
+            m ,s = self.d[y]
+            print("normalized with dict")
+        else:
+            print('CALL: no dict')
+            print(f'y is {y}; d is {self.d}')
+            if not y: print("NOT Y")
+            m,s = self.m, self.s
+            
+        x = (x-m)/s
+
         if self.tfm_y==TfmType.PIXEL and y is not None: y = (y-self.m)/self.s
         return x,y
+
 
 class ChannelOrder():
     '''
@@ -702,14 +729,14 @@ def tfms_from_stats(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=Cr
     """ Given the statistics of the training image sets, returns separate training and validation transform functions
     """
     if aug_tfms is None: aug_tfms=[]
-    tfm_norm = Normalize(*stats, tfm_y=tfm_y if norm_y else TfmType.NO) if stats is not None else None
-    tfm_denorm = Denormalize(*stats) if stats is not None else None
+    tfm_norm = Normalize(stats, tfm_y if tfm_y else None) if stats is not None else None
+    tfm_denorm = Denormalize(stats) if stats is not None else None
     val_crop = CropType.CENTER if crop_type in (CropType.RANDOM,CropType.GOOGLENET) else crop_type
     val_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=val_crop,
             tfm_y=tfm_y, sz_y=sz_y, scale=scale)
     trn_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=crop_type,
             tfm_y=tfm_y, sz_y=sz_y, tfms=aug_tfms, max_zoom=max_zoom, pad_mode=pad_mode, scale=scale)
-    return trn_tfm, val_tfm
+    return trn_tfm, val_tfm 
 
 
 def tfms_from_model(f_model, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
