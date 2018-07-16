@@ -11,7 +11,7 @@ from datetime import datetime
 from skimage.external import tifffile as tiff
 from tensorboardX import SummaryWriter
 
-from src.MLDataTools.image_normalization import RandomDihedral, Denormalize, ToImage
+from src.MLDataTools.image_normalization import RandomDihedral, Denormalize, AddDimension, ToTensorCopy
 
 logger = logging.getLogger(__name__)
 
@@ -25,35 +25,34 @@ BATCH_SIZE = 40
 
 global_step = 0
 
-# tensorboardX
+# TensorBoardX
 date = datetime.now().strftime("%Y-%m-%d.%H:%M:%S")
 
 writer = SummaryWriter('tensorboardx/ResNet50_' + date)
 net = models.resnet50(num_classes=10).to(device)
 net.to(device)
-resnet_mean, resnet_stdev = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]  # visualize the images with this normalization
+resnet_mean, resnet_stdev = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225] # visualize the images with this normalization
 
 ds_transforms = transforms.Compose([
-    ToImage(),
-    # transforms.ToPILImage(),
-    # transforms.Resize([224, 224]),
-    # transforms.ToTensor(),
+    RandomDihedral(), # doing this first gets rid of the negative stride error in .from_numpy
+    ToTensorCopy(),
+    AddDimension(torch.zeros),
     transforms.Normalize(mean=resnet_mean,
                          std=resnet_stdev),
-    RandomDihedral(),
 ])
 # use this for saving images later
 denormalize = Denormalize(means=resnet_mean,
-                          stdev=resnet_stdev)
+                     stdev=resnet_stdev)
 
 
 def tiff_read(path: str):
-    image = tiff.imread(path).astype(np.float)
+    image = tiff.imread(path).astype(np.double)
     return image
 
 
 DATA_DIR = './datasets/yeast_ready'
 DATA_ROOT = os.path.join(os.getcwd(), DATA_DIR)
+
 trainset = torchvision.datasets.ImageFolder(DATA_ROOT + '/train', transform=ds_transforms, loader=tiff_read)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
 

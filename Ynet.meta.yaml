@@ -1,4 +1,4 @@
-arch: ResNet50
-logdir: ./logs
+arch: fastai_ResNet34
+logdir: ./logs/
 name: Ynet
-version: 0.1.1
+version: 0.1.2

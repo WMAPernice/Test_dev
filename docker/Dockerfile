@@ -3,7 +3,6 @@ FROM nvidia/cuda:8.0-runtime-ubuntu16.04
 MAINTAINER Wolfgang Pernice <wolfgang.pernice@gmail.com>
 MAINTAINER Sultan Kenjeyev <ksula0155@gmail.com>
 
-ENV IS_PRODUCTION=TRUE
 
 # Install some basic utilities
 RUN apt-get update
@@ -22,23 +21,14 @@ RUN apt-get install -y \
  && rm -rf /var/lib/apt/lists/*
 
 # Create a working directoryCOPY requirements.txt /PyWeaver/
-COPY requirements.txt /Ynet/
+COPY ./requirements.txt /Ynet/requirements.txt
+RUN python3.6 -m pip install -r /Ynet/requirements.txt
+
 COPY .  /Ynet
 WORKDIR /Ynet
 
-
-
-# Create a non-root user and switch to it
-RUN adduser --disabled-password --gecos '' --shell /bin/bash user \
- && chown -R user:user /Ynet
-RUN echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-user
-USER user
-
-# All users can use /home/user as their home directory
-ENV HOME=/home/user
-RUN chmod 777 /home/user
-RUN pip3 install --no-cache-dir -r /Ynet/requirements.txt
-
+ENV PRODUCTION=TRUE
+ENV CONFIG_FILE_PATH="./Ynet.meta.yaml"
 
 # Set the default command to train
-CMD ["python3", "train.py"]
+CMD ["python3.6", "train.py"]

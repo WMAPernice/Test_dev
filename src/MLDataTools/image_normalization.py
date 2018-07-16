@@ -20,24 +20,6 @@ if __name__ == '__main__':
     print(t(m))
 
 
-class ToImage:
-    def __call__(self, sample):
-        sample = torch.from_numpy(sample)
-        zeros = torch.zeros(1, 200, 200)
-        return torch.cat((sample, zeros))
-
-
-class Denormalize:
-    def __init__(self, means, stdev):
-        self.means = means
-        self.stdev = stdev
-
-    def __call__(self, sample):
-        for dim in range(2):
-            sample[dim].mul_(self.stdev[dim]).add_(self.means[dim])
-        return sample
-
-
 class GetInfo:
     def __init__(self, label=None):
         self.label = label
@@ -51,3 +33,30 @@ class GetInfo:
             if self.label: print(self.label)
             print(type(sample))
             return sample
+
+
+class AddDimension:
+    def __init__(self, init_fn=torch.zeros):
+        self.init_fn = init_fn
+
+    def __call__(self, sample):
+        size = sample.shape[-1]  # assuming image is square with dims Channels x Width x Height
+        zeros = self.init_fn(1, size, size)
+        return torch.cat((sample, zeros))
+
+
+# avoids a pytorch error: negative strides not supported in .from_numpy
+class ToTensorCopy:
+    def __call__(self, sample):
+        return torch.from_numpy(sample.copy())
+
+
+class Denormalize:
+    def __init__(self, means, stdev):
+        self.means = means
+        self.stdev = stdev
+
+    def __call__(self, sample):
+        for dim in range(3):
+            sample[dim].mul_(self.stdev[dim]).add_(self.means[dim])
+        return sample
