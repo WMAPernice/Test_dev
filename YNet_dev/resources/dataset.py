@@ -87,7 +87,7 @@ def n_hot(ids, c):
     res[ids] = 1
     return res
 
-def folder_source(path, folder):
+def folder_source(path, folder, d):
     """
     Returns the filenames and labels for a folder within a path
     
@@ -98,10 +98,11 @@ def folder_source(path, folder):
     lbl_arr: a numpy array of the label indices in `all_lbls`
     """
     fnames, lbls, all_lbls = read_dirs(path, folder)
-    lbl2idx = {lbl:idx for idx,lbl in enumerate(all_lbls)}
-    idxs = [lbl2idx[lbl] for lbl in lbls]
+    for idx, label in enumerate(all_lbls):
+        d[label] = idx
+
+    idxs = [d[lbl] for lbl in lbls]
     lbl_arr = np.array(idxs, dtype=int)
-    print(lbl2idx)
     return fnames, lbl_arr, all_lbls
 
 def parse_csv_labels(fn, skip_header=True, cat_separator = ' '):
@@ -421,7 +422,7 @@ class ImageClassifierData(ImageData):
         return cls(path, datasets, bs, num_workers, classes=classes)
 
     @classmethod
-    def from_paths(cls, path, bs=64, tfms=(None,None), trn_name='train', val_name='valid', test_name=None, test_with_labels=False, num_workers=8):
+    def from_paths_and_stats(cls, stats, size, path, bs=64, trn_name='train', val_name='valid', test_name=None, test_with_labels=False, num_workers=8):
         """ Read in images and their labels given as sub-folder names
 
         Arguments:
@@ -436,11 +437,14 @@ class ImageClassifierData(ImageData):
         Returns:
             ImageClassifierData
         """
-        assert not(tfms[0] is None or tfms[1] is None), "please provide transformations for your train and validation sets"
-        trn,val = [folder_source(path, o) for o in (trn_name, val_name)]
+        lbl2index = {} # gets populated in the folder  source calls
+        trn, val = [folder_source(path, o, lbl2index) for o in (trn_name, val_name)]
         if test_name:
-            test = folder_source(path, test_name) if test_with_labels else read_dir(path, test_name)
-        else: test = None
+            test = folder_source(path, test_name, lbl2index) if test_with_labels else read_dir(path, test_name)
+        else:
+            test = None
+        stats_dict = {lbl2index[key]: val for key, val in stats.items() }
+        tfms = tfms_from_stats(stats_dict, size)
         datasets = cls.get_ds(FilesIndexArrayDataset, trn, val, tfms, path=path, test=test)
         return cls(path, datasets, bs, num_workers, classes=trn[2])
 

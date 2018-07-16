@@ -1,6 +1,7 @@
 from .imports import *
 from .layer_optimizer import *
 from enum import IntEnum
+import inspect
 
 def scale_min(im, targ, interpolation=cv2.INTER_AREA):
     """ Scales the image so that the smallest axis is of size targ.
@@ -159,7 +160,6 @@ class Denormalize():
     def __call__(self, x, y=None): 
         if self.d and y:
             m ,s = self.d[y]
-            print('denormalied with dict')
         else:
             m,s = self.m, self.s
         return x*s+m
@@ -169,22 +169,19 @@ class Normalize():
     def __init__(self, stats, tfm_y=TfmType.NO):
         if isinstance(stats, dict):
             self.d = stats
-            print('its a DICT!')
+            print(f"inited with dict: {self.d}")
         else:
             m, s = stats
             self.m=np.array(m, dtype=np.float32)
             self.s=np.array(s, dtype=np.float32)
-            print('INIT: no dict')
-        self.tfm_y=tfm_y 
+
+        self.tfm_y=tfm_y
 
     def __call__(self, x, y=None):
-        if self.d and y:
-            m ,s = self.d[y]
-            print("normalized with dict")
+        if self.d and y is not None:
+            m, s = self.d[y]
         else:
-            print('CALL: no dict')
-            print(f'y is {y}; d is {self.d}')
-            if not y: print("NOT Y")
+
             m,s = self.m, self.s
             
         x = (x-m)/s
@@ -631,7 +628,7 @@ def compose(im, y, fns):
     """
     for fn in fns:
         #pdb.set_trace()
-        im, y =fn(im, y)
+        im, y = fn(im, y)
     return im if y is None else (im, y)
 
 
@@ -645,7 +642,7 @@ class CropType(IntEnum):
 
 crop_fn_lu = {CropType.RANDOM: RandomCrop, CropType.CENTER: CenterCrop, CropType.NO: NoCrop, CropType.GOOGLENET: GoogleNetResize}
 
-class Transforms():
+class Transforms:
     def __init__(self, sz, tfms, normalizer, denorm, crop_type=CropType.CENTER,
                  tfm_y=TfmType.NO, sz_y=None):
         if sz_y is None: sz_y = sz
@@ -657,6 +654,7 @@ class Transforms():
         self.tfms.append(ChannelOrder(tfm_y))
 
     def __call__(self, im, y=None): return compose(im, y, self.tfms)
+
     def __repr__(self): return str(self.tfms)
 
 
