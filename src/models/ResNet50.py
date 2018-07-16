@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 torch.set_default_tensor_type(torch.DoubleTensor)  # so it doesnt throw a incompatible type exception
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-device = torch.device(DEVICE)  # important for cloud compatability; different type from DEVICE
+device = torch.device(DEVICE)  # important for cloud compatibility; different type from DEVICE
 
 # CONSTANTS
 NUM_CLASSES = 4
@@ -31,10 +31,11 @@ date = datetime.now().strftime("%Y-%m-%d.%H:%M:%S")
 writer = SummaryWriter('tensorboardx/ResNet50_' + date)
 net = models.resnet50(num_classes=10).to(device)
 net.to(device)
-resnet_mean, resnet_stdev = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225] # visualize the images with this normalization
+resnet_mean, resnet_stdev = [0.485, 0.456, 0.406], [0.229, 0.224,
+                                                    0.225]  # resnet expects images normalized with these values
 
 ds_transforms = transforms.Compose([
-    RandomDihedral(), # doing this first gets rid of the negative stride error in .from_numpy
+    RandomDihedral(),  # doing this first gets rid of the negative stride error in .from_numpy
     ToTensorCopy(),
     AddDimension(torch.zeros),
     transforms.Normalize(mean=resnet_mean,
@@ -42,7 +43,7 @@ ds_transforms = transforms.Compose([
 ])
 # use this for saving images later
 denormalize = Denormalize(means=resnet_mean,
-                     stdev=resnet_stdev)
+                          stdev=resnet_stdev)
 
 
 def tiff_read(path: str):

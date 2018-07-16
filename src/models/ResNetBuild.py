@@ -1,12 +1,29 @@
-from ..layers import *
+import math
 
-model_urls = {
-    'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
-    'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
-    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
-    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
-    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
-}
+import torch
+import torch.nn as nn
+
+
+class AdaptiveConcatPool2d(nn.Module):
+    def __init__(self, sz=None):
+        super().__init__()
+        sz = sz or (1, 1)
+        self.ap = nn.AdaptiveAvgPool2d(sz)
+        self.mp = nn.AdaptiveMaxPool2d(sz)
+
+    def forward(self, x): return torch.cat([self.mp(x), self.ap(x)], 1)
+
+
+class Lambda(nn.Module):
+    def __init__(self, f): super().__init__(); self.f = f
+
+    def forward(self, x): return self.f(x)
+
+
+class Flatten(nn.Module):
+    def __init__(self): super().__init__()
+
+    def forward(self, x): return x.view(x.size(0), -1)
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -214,46 +231,3 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         return self.features(x)
-
-
-def load(model, pre, name):
-    if pretrained: model.load_state_dict(model_zoo.load_url(model_urls[name]))
-    return model
-
-
-def fa_resnet18(pretrained=False, **kwargs):  return load(ResNet(BasicBlock, [2, 2, 2, 2], **kwargs), pretrained,
-                                                          'resnet18')
-
-
-def fa_resnet34(pretrained=False, **kwargs):  return load(ResNet(BasicBlock, [3, 4, 6, 3], **kwargs), pretrained,
-                                                          'resnet34')
-
-
-def fa_resnet50(pretrained=False, **kwargs):  return load(ResNet(Bottleneck, [3, 4, 6, 3], **kwargs), pretrained,
-                                                          'resnet50')
-
-
-def fa_resnet101(pretrained=False, **kwargs): return load(ResNet(Bottleneck, [3, 4, 23, 3], **kwargs), pretrained,
-                                                          'resnet101')
-
-
-def fa_resnet152(pretrained=False, **kwargs): return load(ResNet(Bottleneck, [3, 8, 36, 3], **kwargs), pretrained,
-                                                          'resnet152')
-
-
-def bnf_resnet50(): return ResNet(BottleneckFinal, [3, 4, 6, 3])
-
-
-def bnz_resnet50(): return ResNet(BottleneckZero, [3, 4, 6, 3])
-
-
-def w5_resnet50():  return ResNet(Bottleneck, [2, 3, 3, 2], k=1.5)
-
-
-def w25_resnet50():  return ResNet(Bottleneck, [3, 4, 4, 3], k=1.25)
-
-
-def w125_resnet50(): return ResNet(Bottleneck, [3, 4, 6, 3], k=1.125)
-
-
-def vgg_resnet50():  return ResNet(Bottleneck, [3, 4, 6, 3], vgg_head=True)

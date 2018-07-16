@@ -1,15 +1,10 @@
-rom.transforms
-import *
-from .layer_optimizer import *
-from .dataloader import DataLoader
+from .transforms import *
 
 # (!) added imports to allow open_image to function with skimage.io.imread(), file-extension agnostic.
-from skimage.external import tifffile
 # (!) added imports to allow open_image to function with skimage.io.imread(), file-extension agnostic.
 from skimage.external import tifffile
 
 from .dataloader import DataLoader
-from .layer_optimizer import *
 from .transforms import *
 
 
@@ -110,7 +105,7 @@ def folder_source(path, folder):
     lbl2idx = {lbl: idx for idx, lbl in enumerate(all_lbls)}
     idxs = [lbl2idx[lbl] for lbl in lbls]
     lbl_arr = np.array(idxs, dtype=int)
-    return fnames, lbl_arr, all_lbls
+    return fnames, lbl_arr, all_lbls, lbl2idx
 
 
 def parse_csv_labels(fn, skip_header=True, cat_separator=' '):
@@ -185,10 +180,14 @@ class BaseDataset(Dataset):
             return np.stack(xs), ys
         return self.get1item(idx)
 
-    def __len__(self): return self.n
+    def __len__(self):
+        return self.n
 
     def get(self, tfm, x, y):
-        return (x, y) if tfm is None else tfm(x, y)
+        if self.idx_to_class and type(tfm) == NormalizeWithDict:
+            return tfm(x, y, self.idx_to_class)
+        else:
+            return (x, y) if tfm is None else tfm(x, y)
 
     @abstractmethod
     def get_n(self):
@@ -422,12 +421,16 @@ class ImageData(ModelData):
 
     @staticmethod
     def get_ds(fn, trn, val, tfms, test=None, **kwargs):
+
         res = [
             fn(trn[0], trn[1], tfms[0], **kwargs),  # train
             fn(val[0], val[1], tfms[1], **kwargs),  # val
             fn(trn[0], trn[1], tfms[1], **kwargs),  # fix
             fn(val[0], val[1], tfms[0], **kwargs)  # aug
         ]
+
+        res[0].idx_to_class = trn[2]
+
         if test is not None:
             if isinstance(test, tuple):
                 test_lbls = test[1]

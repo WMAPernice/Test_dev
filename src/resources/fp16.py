@@ -3,18 +3,19 @@ import torch.nn as nn
 
 
 class FP16(nn.Module):
-    def __init__(self, module): 
+    def __init__(self, module):
         super(FP16, self).__init__()
         self.module = batchnorm_to_fp32(module.half())
-        
-    def forward(self, input): 
+
+    def forward(self, input):
         return self.module(input.half())
-    
+
     def load_state_dict(self, *inputs, **kwargs):
         self.module.load_state_dict(*inputs, **kwargs)
 
     def state_dict(self, *inputs, **kwargs):
         return self.module.state_dict(*inputs, **kwargs)
+
 
 def batchnorm_to_fp32(module):
     '''
@@ -30,6 +31,7 @@ def batchnorm_to_fp32(module):
         batchnorm_to_fp32(child)
     return module
 
+
 def copy_model_to_fp32(m, optim):
     """  Creates a fp32 copy of model parameters and sets optimizer parameters
     """
@@ -43,10 +45,12 @@ def copy_model_to_fp32(m, optim):
             group_params[i] = fp32_param
     return fp32_params
 
+
 def copy_fp32_to_model(m, fp32_params):
     m_params = list(m.parameters())
     for fp32_param, m_param in zip(fp32_params, m_params):
         m_param.data.copy_(fp32_param.data)
+
 
 def update_fp32_grads(fp32_params, m):
     m_params = list(m.parameters())
@@ -54,4 +58,3 @@ def update_fp32_grads(fp32_params, m):
         if fp32_param.grad is None:
             fp32_param.grad = nn.Parameter(fp32_param.data.new().resize_(*fp32_param.data.size()))
         fp32_param.grad.data.copy_(m_param.grad.data)
-

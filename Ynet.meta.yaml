@@ -1,4 +1,4 @@
 arch: fastai_ResNet34
 logdir: ./logs/
 name: Ynet
-version: 0.1.2
+version: 0.1.3

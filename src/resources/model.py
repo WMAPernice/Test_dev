@@ -31,7 +31,8 @@ def num_features(m):
 def torch_item(x): return x.item() if hasattr(x, 'item') else x[0]
 
 
-class Stepper():
+class Stepper:  # (!) this is sort of an optimized wrappers
+
     def __init__(self, m, opt, crit, clip=0, reg_fn=None, fp16=False, loss_scale=1):
         self.m, self.opt, self.crit, self.clip, self.reg_fn = m, opt, crit, clip, reg_fn
         self.fp16 = fp16
@@ -117,7 +118,8 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
     callbacks = callbacks or []
     avg_mom = 0.98
     batch_num, avg_loss = 0, 0.
-    for cb in callbacks: cb.on_train_begin()
+    for cb in callbacks:
+        cb.on_train_begin()
     names = ["epoch", "trn_loss", "val_loss"] + [f.__name__ for f in metrics]
     if swa_model is not None:
         swa_names = ['swa_loss'] + [f'swa_{f.__name__}' for f in metrics]
@@ -136,13 +138,15 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
     cnt_phases = np.array([ep * len(dat.trn_dl) for (ep, dat) in zip(n_epochs, data)]).cumsum()
     phase = 0
     for epoch in tnrange(tot_epochs, desc='Epoch'):
+        # this procedure includes both test and train
         model_stepper.reset(True)
         cur_data = data[phase]
         if hasattr(cur_data, 'trn_sampler'): cur_data.trn_sampler.set_epoch(epoch)
         if hasattr(cur_data, 'val_sampler'): cur_data.val_sampler.set_epoch(epoch)
         num_batch = len(cur_data.trn_dl)
         t = tqdm(iter(cur_data.trn_dl), leave=False, total=num_batch)
-        if all_val: val_iter = IterBatch(cur_data.val_dl)
+        if all_val:
+            val_iter = IterBatch(cur_data.val_dl)
 
         for (*x, y) in t:
             batch_num += 1
@@ -153,19 +157,25 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             t.set_postfix(loss=debias_loss)
             stop = False
             los = debias_loss if not all_val else [debias_loss] + validate_next(model_stepper, metrics, val_iter)
-            for cb in callbacks: stop = stop or cb.on_batch_end(los)
-            if stop: return
+            for cb in callbacks:
+                stop = stop or cb.on_batch_end(los)
+            if stop:
+                return
             if batch_num >= cnt_phases[phase]:
                 for cb in callbacks: cb.on_phase_end()
                 phase += 1
                 if phase >= len(n_epochs):
                     t.close()
                     break
-                for cb in callbacks: cb.on_phase_begin()
-                if isinstance(opt, LayerOptimizer): model_stepper.opt = opt.opt
+                for cb in callbacks:
+                    cb.on_phase_begin()
+                if isinstance(opt, LayerOptimizer):
+                    model_stepper.opt = opt.opt
                 if cur_data != data[phase]:
                     t.close()
                     break
+
+        per_class_accuracies(cur_data.test_dl, model)
 
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
@@ -178,11 +188,16 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                     swa_vals = validate(swa_stepper, cur_data.val_dl, metrics)
                     vals += swa_vals
 
-            if epoch == 0: print(layout.format(*names))
+            if epoch == 0:
+                print(layout.format(*names))
             print_stats(epoch, [debias_loss] + vals)
             ep_vals = append_stats(ep_vals, epoch, [debias_loss] + vals)
-        if stop: break
-    for cb in callbacks: cb.on_train_end()
+
+        if stop:
+            break
+    print("fit: finished main loop")
+    for cb in callbacks:
+        cb.on_train_end()
     if get_ep_vals:
         return vals, ep_vals
     else:
@@ -200,7 +215,7 @@ def print_stats(epoch, values, decimals=6):
     print(layout.format(*values))
 
 
-class IterBatch():
+class IterBatch:
     def __init__(self, dl):
         self.idx = 0
         self.dl = dl
@@ -314,5 +329,20 @@ def model_summary(m, input_size):
         x = [to_gpu(Variable(torch.rand(2, *input_size)))]
     m(*x)  # (!) unsure what this is doing, used to not be stored, just executed in orginal code.
 
-    for h in hooks: h.remove()
+    for h in hooks:
+        h.remove()
     return summary
+
+
+def per_class_accuracies(data_loader, model):  # (!) may not work for non classification problems
+
+    class_correct, class_total = [], []
+
+    with torch.no_grad():
+        for i in range(len(data_loader)):  # iterate over the whole set
+            x, y = data_loader[i]
+            preds = model(x)
+            choice = torch.argmax(preds)
+            is_correct = (choice == y).item()  # assuming that y is a categorical label
+            class_correct[y.item()] += is_correct
+            class_total[y.item()] += 1
