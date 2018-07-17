@@ -1,3 +1,5 @@
+*.dict
+*.pickle
 datasets
 .ipynb_checkpoints
 .idea
