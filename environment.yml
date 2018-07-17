@@ -99,6 +99,7 @@ dependencies:
   - pandas_summary==0.0.5
   - torchtext
   - graphviz
+  - tensorboardX
   - sklearn_pandas
   - feather-format
   - plotnine

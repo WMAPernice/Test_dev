@@ -29,8 +29,6 @@ RUN curl -o ~/miniconda.sh -O  https://repo.continuum.io/miniconda/Miniconda3-la
     /opt/conda/bin/conda install conda-build
 
 
-WORKDIR /notebooks
-
 COPY ./environment.yml ./environment.yml
 
 # might have to replace
@@ -47,23 +45,11 @@ ENV USER fastai
 CMD source activate fastai
 CMD source ~/.bashrc
 
-#RUN /opt/conda/bin/conda install jupyterlab
-
-WORKDIR /data
-
-RUN curl http://files.fast.ai/data/dogscats.zip --output dogscats.zip
-RUN unzip -d . dogscats.zip
-RUN rm dogscats.zip
-
-RUN ln -s /data/ /notebooks/courses/dl1/
-RUN ls -la /notebooks/courses/dl1/data/
 
 RUN chmod -R a+w /notebooks
 
 ENV PATH /opt/conda/bin:$PATH
-WORKDIR /notebooks
 
 ENV PATH /opt/conda/envs/fastai/bin:$PATH
 
-#CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--allow-root"]
 CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--no-browser", "--allow-root"]
