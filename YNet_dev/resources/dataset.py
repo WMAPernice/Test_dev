@@ -468,7 +468,7 @@ class ImageClassifierData(ImageData):
         return cls(path, datasets, bs, num_workers, classes=classes)
 
     @classmethod
-    def from_paths_and_stats(cls, path, bs=64, trn_name='train', val_name='valid', test_name=None,
+    def prepare_from_path(cls, path, bs=64, trn_name='train', val_name='valid', test_name=None,
                              test_with_labels=False, num_workers=8):
         """ Read in images and their labels given as sub-folder names
 
