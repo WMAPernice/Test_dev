@@ -1,3 +1,7 @@
-datasets
+# ** means any number of subdirs including 0
+**/datasets
+**/__pycache__
 .idea
-
+**/.ipynb_checkpoints
+**/runs
+**/tensorboardX

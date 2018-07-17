@@ -68,6 +68,7 @@ dependencies:
 - python-dateutil
 - pytz
 - pyzmq
+- git
 - qt
 - qtconsole
 - scipy

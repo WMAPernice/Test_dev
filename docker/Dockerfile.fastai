@@ -35,8 +35,8 @@ COPY ./environment.yml ./environment.yml
 RUN ls && /opt/conda/bin/conda env create
 RUN /opt/conda/bin/conda clean -ya
 
-COPY .  /Ynet
-WORKDIR /Ynet
+COPY .  /YNet
+WORKDIR /YNet
 
 ENV PATH /opt/conda/envs/fastai/bin:$PATH
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
@@ -52,4 +52,5 @@ ENV PATH /opt/conda/bin:$PATH
 
 ENV PATH /opt/conda/envs/fastai/bin:$PATH
 
+ENTRYPOINT ["tini", "-g", "--"]
 CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--no-browser", "--allow-root"]

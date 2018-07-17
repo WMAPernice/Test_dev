@@ -1,9 +1,9 @@
-from .fp16 import *
-from .swa import *
 from .imports import *
 from .torch_imports import *
 from .core import *
 from .layer_optimizer import *
+from .swa import *
+from .fp16 import *
 
 
 IS_TORCH_04 = LooseVersion(torch.__version__) >= LooseVersion('0.4')
@@ -56,16 +56,16 @@ class Stepper:  # (!) this is sort of an optimized wrappers
 
     def step(self, xs, y, epoch):
         xtra = []
-        output = self.m(*xs)
+        output = self.m(*xs) # here we use the forward method
         if isinstance(output, tuple): output, *xtra = output
         if self.fp16:
             self.m.zero_grad()
         else:
             self.opt.zero_grad()
-        loss = raw_loss = self.crit(output, y)
+        loss = raw_loss = self.crit(output, y) # criterion part
         if self.loss_scale != 1: assert (self.fp16); loss = loss * self.loss_scale
         if self.reg_fn: loss = self.reg_fn(output, xtra, raw_loss)
-        loss.backward()
+        loss.backward() # loss backprop
         if self.fp16: update_fp32_grads(self.fp32_params, self.m)
         if self.loss_scale != 1:
             for param in self.fp32_params: param.grad.data.div_(self.loss_scale)
@@ -80,7 +80,7 @@ class Stepper:  # (!) this is sort of an optimized wrappers
                 lr, wd = group['lr'], group['wd']
                 for p in group['params']:
                     if p.grad is not None: p.data = p.data.add(-wd * lr, p.data)
-        self.opt.step()
+        self.opt.step() # updating the weights in the models
         if self.fp16:
             copy_fp32_to_model(self.m, self.fp32_params)
             torch.cuda.synchronize()
@@ -179,10 +179,6 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                 if cur_data != data[phase]:
                     t.close()
                     break
-        print(f"type fo first element is: {type(data[0])}")
-        print(f"length of training dataset: [{len(data[0])}]")
-        print(f"length of val dataset: [{len(data.val_dl)}]")
-        print(f"length of test dataset: [{len(data.test_dl)}]")
 
 
         per_class_accuracies(cur_data.val_dl, model)
@@ -205,7 +201,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
 
         if stop:
             break
-    print("fit: finished main loop")
+
     for cb in callbacks:
         cb.on_train_end()
     if get_ep_vals:
@@ -348,20 +344,23 @@ def per_class_accuracies(data_loader, model):  # (!) may not work for non classi
 
     class_correct, class_total = {}, {}
     data_iter = iter(data_loader)
-    print(f"length of validation dataset: [{len(data_loader)}]")
 
     for x, y in data_iter:
-        preds = model(V(x)).data.numpy()
-        choice = np.argmax(preds)
-        is_correct = (choice == y.numpy()[0]) # assuming that y is a categorical label
-        label = y[0]
-        if label not in class_correct:
-            class_correct[label] = 0
-        if label not in class_total:
-            class_total[label] = 0
+        # do the computation on the gpu after switch to the cpu
+        preds = model(x).data.cpu().numpy() # this is a batch
+        choice = np.argmax(preds, axis=1)
+        y = y.cpu().numpy()
+        is_correct = (choice == y)
 
-        class_correct[label] += is_correct
-        class_total[label] += 1
+        for idx, label in enumerate(y):
+            if label not in class_correct:
+                class_correct[label] = 0
+            if label not in class_total:
+                class_total[label] = 0
+
+            class_correct[label] += is_correct[idx]
+            class_total[label] += 1
 
     for label, total in class_total.items():
-        print(f"[{label}]: {class_correct[label]/total}")
+        accuracy = 100 * class_correct[label]/total
+        print(f"[{label}]: {accuracy:5.4}")

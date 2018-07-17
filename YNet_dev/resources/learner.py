@@ -124,7 +124,7 @@ class Learner():
                 use_clr=None, use_clr_beta=None, metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False,
                 wds_sched_mult=None, use_swa=False, swa_start=1, swa_eval_freq=5, **kwargs):
 
-        """Method does some preparation before finally delegating to the 'fit' method for
+        """Method does sget_layer_optome preparation before finally delegating to the 'fit' method for
         fitting the model. Namely, if cycle_len is defined, it adds a 'Cosine Annealing'
         scheduler for varying the learning rate across iterations.
 

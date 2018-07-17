@@ -1,9 +1,12 @@
 *.dict
 *.pickle
-datasets
-.ipynb_checkpoints
 .idea
 *_DATA
-__pycache__/
-tensorboardx
 .DS_Store
+
+# the slash at the end indicates ignore at any level
+runs/
+__pycache__/
+tensorboardx/
+.ipynb_checkpoints/
+datasets/
