@@ -158,7 +158,7 @@ class Denormalize():
             self.s=np.array(s, dtype=np.float32)
 
     def __call__(self, x, y=None): 
-        if self.d and y:
+        if self.d and y is not None:
             m ,s = self.d[y]
         else:
             m,s = self.m, self.s

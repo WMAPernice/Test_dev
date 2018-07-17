@@ -422,7 +422,7 @@ class ImageClassifierData(ImageData):
         return cls(path, datasets, bs, num_workers, classes=classes)
 
     @classmethod
-    def from_paths_and_stats(cls, stats, size, path, bs=64, trn_name='train', val_name='valid', test_name=None, test_with_labels=False, num_workers=8):
+    def from_paths_and_stats(cls, path, bs=64, trn_name='train', val_name='valid', test_name=None, test_with_labels=False, num_workers=8):
         """ Read in images and their labels given as sub-folder names
 
         Arguments:
@@ -443,10 +443,13 @@ class ImageClassifierData(ImageData):
             test = folder_source(path, test_name, lbl2index) if test_with_labels else read_dir(path, test_name)
         else:
             test = None
-        stats_dict = {lbl2index[key]: val for key, val in stats.items() }
-        tfms = tfms_from_stats(stats_dict, size)
-        datasets = cls.get_ds(FilesIndexArrayDataset, trn, val, tfms, path=path, test=test)
-        return cls(path, datasets, bs, num_workers, classes=trn[2])
+       
+        def create(tfms):
+            datasets = cls.get_ds(FilesIndexArrayDataset, trn, val, tfms, path=path, test=test)
+            return cls(path, datasets, bs, num_workers, classes=trn[2])
+
+        return create, lbl2index
+
 
     @classmethod
     def from_csv(cls, path, folder, csv_fname, bs=64, tfms=(None,None),
