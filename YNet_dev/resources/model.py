@@ -347,8 +347,11 @@ def per_class_accuracies(data_loader, model):  # (!) may not work for non classi
 
     for x, y in data_iter:
         # do the computation on the gpu after switch to the cpu
+        x = x if IS_TORCH_04 else V(x)
+
         preds = model(x).data.cpu().numpy() # this is a batch
         choice = np.argmax(preds, axis=1)
+
         y = y.cpu().numpy()
         is_correct = (choice == y)
 
@@ -363,4 +366,4 @@ def per_class_accuracies(data_loader, model):  # (!) may not work for non classi
 
     for label, total in class_total.items():
         accuracy = 100 * class_correct[label]/total
-        print(f"[{label}]: {accuracy:5.4}")
+        print(f"[{label}]: {accuracy:4.4}%")
