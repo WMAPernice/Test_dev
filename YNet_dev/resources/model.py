@@ -1,5 +1,10 @@
 from .fp16 import *
 from .swa import *
+from .imports import *
+from .torch_imports import *
+from .core import *
+from .layer_optimizer import *
+
 
 IS_TORCH_04 = LooseVersion(torch.__version__) >= LooseVersion('0.4')
 
@@ -174,8 +179,13 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                 if cur_data != data[phase]:
                     t.close()
                     break
+        print(f"type fo first element is: {type(data[0])}")
+        print(f"length of training dataset: [{len(data[0])}]")
+        print(f"length of val dataset: [{len(data.val_dl)}]")
+        print(f"length of test dataset: [{len(data.test_dl)}]")
 
-        per_class_accuracies(cur_data.test_dl, model)
+
+        per_class_accuracies(cur_data.val_dl, model)
 
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
@@ -336,13 +346,22 @@ def model_summary(m, input_size):
 
 def per_class_accuracies(data_loader, model):  # (!) may not work for non classification problems
 
-    class_correct, class_total = [], []
+    class_correct, class_total = {}, {}
+    data_iter = iter(data_loader)
+    print(f"length of validation dataset: [{len(data_loader)}]")
 
-    with torch.no_grad():
-        for i in range(len(data_loader)):  # iterate over the whole set
-            x, y = data_loader[i]
-            preds = model(x)
-            choice = torch.argmax(preds)
-            is_correct = (choice == y).item()  # assuming that y is a categorical label
-            class_correct[y.item()] += is_correct
-            class_total[y.item()] += 1
+    for x, y in data_iter:
+        preds = model(V(x)).data.numpy()
+        choice = np.argmax(preds)
+        is_correct = (choice == y.numpy()[0]) # assuming that y is a categorical label
+        label = y[0]
+        if label not in class_correct:
+            class_correct[label] = 0
+        if label not in class_total:
+            class_total[label] = 0
+
+        class_correct[label] += is_correct
+        class_total[label] += 1
+
+    for label, total in class_total.items():
+        print(f"[{label}]: {class_correct[label]/total}")
