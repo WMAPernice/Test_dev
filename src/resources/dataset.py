@@ -1,5 +1,3 @@
-from .transforms import *
-
 # (!) added imports to allow open_image to function with skimage.io.imread(), file-extension agnostic.
 # (!) added imports to allow open_image to function with skimage.io.imread(), file-extension agnostic.
 from skimage.external import tifffile
@@ -91,7 +89,7 @@ def n_hot(ids, c):
     return res
 
 
-def folder_source(path, folder):
+def folder_source(path, folder, d):
     """
     Returns the filenames and labels for a folder within a path
     
@@ -102,10 +100,12 @@ def folder_source(path, folder):
     lbl_arr: a numpy array of the label indices in `all_lbls`
     """
     fnames, lbls, all_lbls = read_dirs(path, folder)
-    lbl2idx = {lbl: idx for idx, lbl in enumerate(all_lbls)}
-    idxs = [lbl2idx[lbl] for lbl in lbls]
+    for idx, label in enumerate(all_lbls):
+        d[label] = idx
+
+    idxs = [d[lbl] for lbl in lbls]
     lbl_arr = np.array(idxs, dtype=int)
-    return fnames, lbl_arr, all_lbls, lbl2idx
+    return fnames, lbl_arr, all_lbls
 
 
 def parse_csv_labels(fn, skip_header=True, cat_separator=' '):
@@ -283,16 +283,17 @@ class FilesDataset(BaseDataset):
                            new_path)  # (!) THIS calls resize_image which uses mode=RGB -> Issues
         return self.__class__(self.fnames, self.y, self.transform, dest)
 
-    def denorm(self, arr):
+    def denorm(self, arr, y=None):
         """Reverse the normalization done to a batch of images.
 
         Arguments:
             arr: of shape/size (N,3,sz,sz)
         """
         if type(arr) is not np.ndarray: arr = to_np(arr)
+
         if len(arr.shape) == 3: arr = arr[None]
-        return self.transform.denorm(np.rollaxis(arr, 1,
-                                                 4))  ##(!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
+        return self.transform.denorm(np.rollaxis(arr, 1, 4),
+                                     y)  ##(!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
 
 
 class FilesArrayDataset(FilesDataset):
@@ -469,8 +470,8 @@ class ImageClassifierData(ImageData):
         return cls(path, datasets, bs, num_workers, classes=classes)
 
     @classmethod
-    def from_paths(cls, path, bs=64, tfms=(None, None), trn_name='train', val_name='valid', test_name=None,
-                   test_with_labels=False, num_workers=8):
+    def prepare_from_path(cls, path, bs=64, trn_name='train', val_name='valid', test_name=None, test_with_labels=False,
+                          num_workers=8):
         """ Read in images and their labels given as sub-folder names
 
         Arguments:
@@ -485,15 +486,18 @@ class ImageClassifierData(ImageData):
         Returns:
             ImageClassifierData
         """
-        assert not (tfms[0] is None or tfms[
-            1] is None), "please provide transformations for your train and validation sets"
-        trn, val = [folder_source(path, o) for o in (trn_name, val_name)]
+        lbl2index = {}  # gets populated in the folder  source calls
+        trn, val = [folder_source(path, o, lbl2index) for o in (trn_name, val_name)]
         if test_name:
-            test = folder_source(path, test_name) if test_with_labels else read_dir(path, test_name)
+            test = folder_source(path, test_name, lbl2index) if test_with_labels else read_dir(path, test_name)
         else:
             test = None
-        datasets = cls.get_ds(FilesIndexArrayDataset, trn, val, tfms, path=path, test=test)
-        return cls(path, datasets, bs, num_workers, classes=trn[2])
+
+        def create(tfms): # (!!!) dont remember exactly how this was on WPs computer
+            datasets = cls.get_ds(FilesIndexArrayDataset, trn, val, tfms, path=path, test=test)
+            return cls(path, datasets, bs, num_workers, classes=trn[2])
+
+        return create, lbl2index
 
     @classmethod
     def from_csv(cls, path, folder, csv_fname, bs=64, tfms=(None, None),
