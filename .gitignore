@@ -1,3 +1,12 @@
+<<<<<<< HEAD
+datasets
+.ipynb_checkpoints
+.idea
+*_DATA
+__pycache__/
+tensorboardx
+.DS_Store
+=======
 .DS_Store
 *tensorboardx
 datasets
@@ -5,3 +14,4 @@ datasets
 *__pycache__
 .idea
 .ipynb_*
+>>>>>>> master

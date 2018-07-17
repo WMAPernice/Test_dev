@@ -1,0 +1,6 @@
+
+for var in "$@"
+do
+	printf "\nExecuting $var\n"
+    source ./scripts/$var.sh
+done
