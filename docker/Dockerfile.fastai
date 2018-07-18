@@ -46,10 +46,12 @@ CMD source activate fastai
 CMD source ~/.bashrc
 
 
-RUN chmod -R a+w /notebooks
+RUN chmod -R a+w /YNet
 
 ENV PATH /opt/conda/bin:$PATH
 
 ENV PATH /opt/conda/envs/fastai/bin:$PATH
+
 RUN alias jn="jupyter notebook --ip=0.0.0.0 --no-browser --allow-root"
 CMD ["bash"]
+
