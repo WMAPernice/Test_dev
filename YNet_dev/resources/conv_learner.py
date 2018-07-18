@@ -1,5 +1,7 @@
-from .initializers import *
+from .core import *
+from .layers import *
 from .learner import *
+from .initializers import *
 
 model_meta = {
     resnet18: [8, 6], resnet34: [8, 6], resnet50: [8, 6], resnet101: [8, 6], resnet152: [8, 6],

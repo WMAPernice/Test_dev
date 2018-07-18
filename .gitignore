@@ -5,3 +5,5 @@ datasets
 __pycache__/
 tensorboardx
 .DS_Store
+.vscode/
+norm_stats.dict
