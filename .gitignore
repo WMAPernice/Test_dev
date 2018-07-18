@@ -1,5 +1,6 @@
 *.dict
 *.pickle
+*.tuple
 .idea
 *_DATA
 .DS_Store
