@@ -40,7 +40,7 @@ class Statistics:
             stats[class_name] = (mean, stdev)
 
         if save_name:
-            Statistics.pickle(stats, save_name)  # if save is given it should be a string; empty strings are false
+            Statistics.pickle(stats, save_name+".per_class.dict")  # if save is given it should be a string; empty strings are false
 
         return stats
 
@@ -48,3 +48,25 @@ class Statistics:
     def pickle(stats, name="stats.dict") -> None:
         with open(name, 'wb') as file:
             pickle.dump(stats, file)
+
+    @staticmethod
+    def per_dataset(test_dirs:[Path], train_dirs:[Path], norm_value=65536, save_name='') -> tuple:
+
+        _dirs = [*test_dirs, *train_dirs]
+        print(len(_dirs))
+        images = []
+        for _dir in _dirs:
+            for file in _dir.iterdir():
+                if ".tif" in str(file):
+                    image = tiff.imread(str(file))
+                    images.append(image)
+
+        print(f"working on a dataset with length: {len(images)}")
+        mean = np.mean(images, axis=(0, 2, 3)) / norm_value
+        stdev = np.std(images, axis=(0, 2, 3)) / norm_value
+
+        stats = (mean, stdev)
+        if save_name:
+            Statistics.pickle(stats, save_name+".per_dataset.tuple")
+        return stats
+
