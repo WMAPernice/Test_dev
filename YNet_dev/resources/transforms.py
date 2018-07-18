@@ -152,6 +152,7 @@ def det_zoom(zoom): return lambda x: zoom_cv(x, zoom)
 
 
 def rand0(s): return random.random() * (s * 2) - s
+def rand0(s): return random.random() * (s * 2) - s
 
 
 class TfmType(IntEnum):
@@ -189,6 +190,7 @@ class Denormalize():
             m, s = stats
             self.m=np.array(m, dtype=np.float32)
             self.s=np.array(s, dtype=np.float32)
+            self.d = None
 
     def __call__(self, x, y=None): 
         if self.d and y is not None:
@@ -203,11 +205,11 @@ class Normalize():
     def __init__(self, stats, tfm_y=TfmType.NO):
         if isinstance(stats, dict):
             self.d = stats
-            print(f"inited with dict: {self.d}")
         else:
             m, s = stats
             self.m=np.array(m, dtype=np.float32)
             self.s=np.array(s, dtype=np.float32)
+            self.d = None  # (!) so we can check if it there
 
         self.tfm_y=tfm_y
 

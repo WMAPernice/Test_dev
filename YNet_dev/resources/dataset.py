@@ -496,7 +496,7 @@ class ImageClassifierData(ImageData):
         else:
             test = None
 
-        def create(tfms): # (!!!) dont remember exactly how this was on WPs computer
+        def create(tfms):
             datasets = cls.get_ds(FilesIndexArrayDataset, trn, val, tfms, path=path, test=test)
             return cls(path, datasets, bs, num_workers, classes=trn[2])
 

@@ -61,7 +61,10 @@ def to_np(v):
     return v.cpu().numpy()
 
 IS_TORCH_04 = LooseVersion(torch.__version__) >= LooseVersion('0.4')
-USE_GPU = torch.cuda.is_available()
+if os.getenv("NO_CUDA"): USE_GPU = False
+else: USE_GPU = torch.cuda.is_available()
+
+
 def to_gpu(x, *args, **kwargs):
     '''puts pytorch variable to gpu, if cuda is avaialble and USE_GPU is set to true. '''
     return x.cuda(*args, **kwargs) if USE_GPU else x

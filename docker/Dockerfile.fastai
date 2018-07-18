@@ -35,8 +35,8 @@ COPY ./environment.yml ./environment.yml
 RUN ls && /opt/conda/bin/conda env create
 RUN /opt/conda/bin/conda clean -ya
 
-COPY .  /Ynet
-WORKDIR /Ynet
+COPY .  /YNet
+WORKDIR /YNet
 
 ENV PATH /opt/conda/envs/fastai/bin:$PATH
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
@@ -46,10 +46,12 @@ CMD source activate fastai
 CMD source ~/.bashrc
 
 
-RUN chmod -R a+w /notebooks
+RUN chmod -R a+w /YNet
 
 ENV PATH /opt/conda/bin:$PATH
 
 ENV PATH /opt/conda/envs/fastai/bin:$PATH
 
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--no-browser", "--allow-root"]
+RUN alias jn="jupyter notebook --ip=0.0.0.0 --no-browser --allow-root"
+CMD ["bash"]
+

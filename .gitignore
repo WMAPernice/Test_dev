@@ -1,9 +1,14 @@
-datasets
-.ipynb_checkpoints
+*.dict
+*.pickle
+*.tuple
 .idea
 *_DATA
-__pycache__/
-tensorboardx
 .DS_Store
 .vscode/
-norm_stats.dict
+# the slash at the end indicates ignore at any level
+runs/
+__pycache__/
+tensorboardx/
+.ipynb_checkpoints/
+datasets/
+
