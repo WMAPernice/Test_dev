@@ -51,6 +51,5 @@ RUN chmod -R a+w /notebooks
 ENV PATH /opt/conda/bin:$PATH
 
 ENV PATH /opt/conda/envs/fastai/bin:$PATH
-
-ENTRYPOINT ["tini", "-g", "--"]
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--no-browser", "--allow-root"]
+RUN alias jn="jupyter notebook --ip=0.0.0.0 --no-browser --allow-root"
+CMD ["bash"]
