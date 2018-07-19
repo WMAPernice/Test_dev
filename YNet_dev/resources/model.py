@@ -5,7 +5,6 @@ from .layer_optimizer import *
 from .swa import *
 from .fp16 import *
 
-
 IS_TORCH_04 = LooseVersion(torch.__version__) >= LooseVersion('0.4')
 
 
@@ -181,7 +180,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                     break
 
 
-        per_class_accuracies(cur_data.val_dl, model)
+        per_class_accuracies(cur_data.val_dl, model, epoch) # (!) added per class accuracy
 
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
@@ -197,6 +196,9 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             if epoch == 0:
                 print(layout.format(*names))
             print_stats(epoch, [debias_loss] + vals)
+            if hasattr(model,'writer'): # (!) added a tensorboard logger
+                tensorboard_log(model ,epoch, [debias_loss] + vals)
+
             ep_vals = append_stats(ep_vals, epoch, [debias_loss] + vals)
 
         if stop:
@@ -340,7 +342,7 @@ def model_summary(m, input_size):
     return summary
 
 
-def per_class_accuracies(data_loader, model):  # (!) may not work for non classification problems
+def per_class_accuracies(data_loader, model, epoch:int):  # (!) may not work for non classification problems
 
     class_correct, class_total = {}, {}
     data_iter = iter(data_loader)
@@ -363,7 +365,23 @@ def per_class_accuracies(data_loader, model):  # (!) may not work for non classi
 
             class_correct[label] += is_correct[idx]
             class_total[label] += 1
-
-    for label, total in class_total.items():
-        accuracy = 100 * class_correct[label]/total
+    accuracy = {str(label): correct / class_total[label] for label, correct in class_correct.items()}
+    if hasattr(model,'writer'):
+        model.writer.add_scalars("class_accuracies", accuracy, epoch)
+    for label, accuracy in accuracy.items():
         print(f"[{label}]: {accuracy:4.4}%")
+
+def tensorboard_log(model, epoch, metrics): # (!) tailored for our classification model
+    """
+
+    :param model:
+    :param epoch:
+    :param metrics: [0] train_loss [1] valid loss [2] accuracy
+    :return:
+    """
+    model.writer.add_scalar("train loss", metrics[0], epoch)
+    model.writer.add_scalar("validation loss", metrics[1], epoch)
+    model.writer.add_scalar("accuracy", metrics[2], epoch)
+
+
+

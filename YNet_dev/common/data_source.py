@@ -70,3 +70,18 @@ class Statistics:
             Statistics.pickle(stats, save_name+".per_dataset.tuple")
         return stats
 
+    @staticmethod
+    def source_images(root: Path) -> list:
+        images = []
+        for path in root.iterdir():# test and train
+            if path.is_dir():
+                for class_dir in path.iterdir():
+                    if path.is_dir():
+                        for image_path in class_dir.iterdir():
+                            image = tiff.imread(str(image_path))
+                            images.append(image)
+
+        print(f"sources [{len(images)}] images")
+        return images
+
+
