@@ -89,7 +89,7 @@ dependencies:
 - widgetsnbextension
 - xz
 - zeromq
-- pytorch==0.4
+- pytorch==0.4 # Different from original env.; might need to manually upgrade your local env. 
 - bcolz
 - prompt_toolkit
 - pytest
@@ -97,7 +97,7 @@ dependencies:
   - torchvision>=0.1.9
   - opencv-python
   - isoweek
-  - scikit-image
+  - scikit-image # Added with respect to original env.
   - pandas_summary==0.0.5
   - torchtext
   - graphviz
