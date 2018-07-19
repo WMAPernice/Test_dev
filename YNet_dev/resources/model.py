@@ -196,8 +196,8 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             if epoch == 0:
                 print(layout.format(*names))
             print_stats(epoch, [debias_loss] + vals)
-            if hasattr(model,'writer'): # (!) added a tensorboard logger
-                tensorboard_log(model ,epoch, [debias_loss] + vals)
+            if hasattr(model,'writer'):  # (!) added a tensorboard logger
+                tensorboard_log(model, epoch, [debias_loss] + vals)
 
             ep_vals = append_stats(ep_vals, epoch, [debias_loss] + vals)
 

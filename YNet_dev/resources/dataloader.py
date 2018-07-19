@@ -1,5 +1,5 @@
 import torch, queue
-from torch.utils.data.sampler import SequentialSampler, RandomSampler, BatchSampler
+from torch.utils.data.sampler import SequentialSampler, RandomSampler, BatchSampler, WeightedRandomSampler
 from .imports import *
 from .core import *
 import collections,sys,traceback,threading
@@ -24,7 +24,7 @@ def get_tensor(batch, pin, half=False):
 
 class DataLoader(object):
     def __init__(self, dataset, batch_size=1, shuffle=False, sampler=None, batch_sampler=None, pad_idx=0,
-                 num_workers=None, pin_memory=False, drop_last=False, pre_pad=True, half=False,
+                 num_workers=None, pin_memory=False, drop_last=False, pre_pad=True, half=False, weights=None,
                  transpose=False, transpose_y=False):
         self.dataset, self.batch_size, self.num_workers = dataset, batch_size, num_workers
         self.pin_memory, self.drop_last, self.pre_pad = pin_memory, drop_last, pre_pad
@@ -41,6 +41,8 @@ class DataLoader(object):
         if batch_sampler is None:
             if sampler is None:
                 sampler = RandomSampler(dataset) if shuffle else SequentialSampler(dataset)
+                if weights is not None: # (!)
+                    sampler = WeightedRandomSampler(weights, len(weights))
             batch_sampler = BatchSampler(sampler, batch_size, drop_last)
 
         if num_workers is None:

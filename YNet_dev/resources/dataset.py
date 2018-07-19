@@ -9,6 +9,8 @@ from .dataloader import DataLoader
 
 # (!) added imports to allow open_image to function with skimage.io.imread(), file-extension agnostic.
 from skimage.external import tifffile
+# (!) added for debug
+import matplotlib.pyplot as plt
 
 
 
@@ -386,19 +388,19 @@ class ModelData():
 
 
 class ImageData(ModelData):
-    def __init__(self, path, datasets, bs, num_workers, classes):
+    def __init__(self, path, datasets, bs, num_workers, classes, balance=None): # (!) balance
         trn_ds, val_ds, fix_ds, aug_ds, test_ds, test_aug_ds = datasets
         self.path, self.bs, self.num_workers, self.classes = path, bs, num_workers, classes
         self.trn_dl, self.val_dl, self.fix_dl, self.aug_dl, self.test_dl, self.test_aug_dl = [
-            self.get_dl(ds, shuf) for ds, shuf in [
-                (trn_ds, True), (val_ds, False), (fix_ds, False), (aug_ds, False),
-                (test_ds, False), (test_aug_ds, False)
+            self.get_dl(ds, shuf, weights) for ds, shuf, weights in [ # (!) weights
+                (trn_ds, True, balance), (val_ds, False, None), (fix_ds, False, None), (aug_ds, False,None),
+                (test_ds, False, None), (test_aug_ds, False, None)
             ]
         ]
 
-    def get_dl(self, ds, shuffle):
+    def get_dl(self, ds, shuffle, weights):
         if ds is None: return None
-        return DataLoader(ds, batch_size=self.bs, shuffle=shuffle,
+        return DataLoader(ds, batch_size=self.bs, shuffle=shuffle, weights=weights,
                           num_workers=self.num_workers, pin_memory=False)
 
     @property
@@ -476,7 +478,7 @@ class ImageClassifierData(ImageData):
     @classmethod
 
     def prepare_from_path(cls, path, bs=64, trn_name='train', val_name='valid', test_name=None, test_with_labels=False,
-                          num_workers=8):
+                          num_workers=8,balance=False):
         """ Read in images and their labels given as sub-folder names
 
         Arguments:
@@ -493,6 +495,12 @@ class ImageClassifierData(ImageData):
         """
         lbl2index = {}  # gets populated in the folder  source calls
         trn, val = [folder_source(path, o, lbl2index) for o in (trn_name, val_name)]
+        # check if unbalanced argument is True then do that thing boiiiiiiiii
+        if balance:
+            weights = compute_weights(trn)
+        else:
+            weights = None
+
         if test_name:
             test = folder_source(path, test_name, lbl2index) if test_with_labels else read_dir(path, test_name)
         else:
@@ -500,7 +508,7 @@ class ImageClassifierData(ImageData):
 
         def create(tfms):
             datasets = cls.get_ds(FilesIndexArrayDataset, trn, val, tfms, path=path, test=test)
-            return cls(path, datasets, bs, num_workers, classes=trn[2])
+            return cls(path, datasets, bs, num_workers, classes=trn[2], balance=weights)
 
         return create, lbl2index
 
@@ -567,3 +575,33 @@ def split_by_idx(idxs, *a):
     mask = np.zeros(len(a[0]), dtype=bool)
     mask[np.array(idxs)] = True
     return [(o[mask], o[~mask]) for o in a]
+
+def compute_weights(dataset):
+    """
+
+    :param dataset: dataset[0]: samples and names e.g. generic_filename; dataset[1] labels e.g. 0 or 1
+    :return: set of weights/probabilities for each sample; represents how often it is picked
+    """
+    weights = np.zeros(len(dataset[1]))
+    labels = list(set(dataset[1]))
+    occurrences = np.bincount(dataset[1])
+    probs = [100*count/sum(occurrences) for count in occurrences]
+
+    for idx, label in enumerate(labels):
+        weights[dataset[1] == label] = probs[idx] / occurrences[idx]
+
+
+    desired = 100 / len(labels) # desired probability per class
+
+    for idx, prob in enumerate(probs):
+        delta = desired - prob # unlikely to be 0
+        correction = delta / occurrences[idx]
+        print(correction)
+        weights[dataset[1] == labels[idx]] += correction
+
+    return weights
+
+
+
+
+

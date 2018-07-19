@@ -180,7 +180,7 @@ class DenormalizeWithDict:
         return t(x), y
 
 
-class Denormalize():
+class Denormalize:
     """ De-normalizes an image, returning it to original format.
     """
     def __init__(self, stats):
@@ -199,7 +199,7 @@ class Denormalize():
             m,s = self.m, self.s
         return x*s+m
 
-class Normalize():
+class Normalize:
     """ Normalizes an image to zero mean and unit standard deviation, given the mean m and std s of the original image """
 
     def __init__(self, stats, tfm_y=TfmType.NO):
@@ -207,8 +207,8 @@ class Normalize():
             self.d = stats
         else:
             m, s = stats
-            self.m=np.array(m, dtype=np.float32)
-            self.s=np.array(s, dtype=np.float32)
+            self.m = np.array(m, dtype=np.float32)
+            self.s = np.array(s, dtype=np.float32)
             self.d = None  # (!) so we can check if it there
 
         self.tfm_y=tfm_y
@@ -219,8 +219,8 @@ class Normalize():
         else:
 
             m,s = self.m, self.s
-            
-        x = (x-m)/s
+
+        x = (x-m) / s
 
         if self.tfm_y==TfmType.PIXEL and y is not None: y = (y-self.m)/self.s
         return x,y
@@ -511,8 +511,26 @@ class RandomRotate(CoordTransform):
                                         interpolation=cv2.INTER_NEAREST if is_y else cv2.INTER_AREA)
         return x
 
+class AddDimension(CoordTransform): # (!)
 
-class RandomDihedral(CoordTransform):
+    def set_state(self): pass
+
+    def do_transform(self, x, is_y):
+        size = x.shape[0]
+        dim = np.zeros((size, size, 1))
+        out = np.concatenate((x, dim), axis=2)
+        return out
+
+
+class ToCopyTensor(CoordTransform):
+    def set_state(self):pass
+    def do_transform(self, x, is_y):
+        out = torch.from_numpy(x.copy())
+        print("tocopytensor: ",type(out))
+        return out
+
+
+class RandomDihedral(CoordTransform):  # (!)
     """
     Rotates images by random multiples of 90 degrees and/or reflection.
     Please reference D8(dihedral group of order eight), the group of all symmetries of the square.
@@ -697,8 +715,8 @@ class GoogleNetResize(CoordTransform):
 def compose(im, y, fns):
     """ apply a collection of transformation functions fns to images
     """
-    for fn in fns:
 
+    for fn in fns:
         im, y = fn(im, y)
     return im if y is None else (im, y)
 

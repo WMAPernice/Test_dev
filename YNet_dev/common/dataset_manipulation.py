@@ -22,25 +22,29 @@ def shuffle_zip(zips_path: str, output_path: str, ready_path: str, val=False):
     -> optionally re-zip or storage in hdf5 object (TODO)
     """
     temp_dir = 'TEMP_UNZIP'  # Path definition, also for later use
-    nclasses = 0
     if os.path.exists(temp_dir):
-        raise ValueError('temp folder already exists in directory; consider deleting and re-run')
+        shutil.rmtree(temp_dir)
     else:
         os.makedirs(temp_dir)
 
     zips_path = Path(zips_path)
-    for class_dir in zips_path.iterdir():
 
+    for class_dir in zips_path.iterdir():
         dataset_name = extract_ds_name(class_dir)
+
         print(f"working on [{dataset_name}] class")
 
+
         temp_ds_path = temp_dir + '/' + dataset_name
+
         # unzips files into temp folder
-
-
         zip_ref = zipfile.ZipFile(class_dir, 'r')
         zip_ref.extractall(temp_ds_path)
         zip_ref.close()
+
+        temp_ds_path = Path(temp_ds_path)
+
+        delete_non_square(temp_ds_path)
 
         test_addrs, train_addrs = split_images(temp_ds_path)
 
@@ -117,7 +121,7 @@ def ready_data(dataset_name: str, input_path, output_path, data_struct=['train',
         if not os.path.exists(output_path + '/' + i):
             os.makedirs(output_path + '/' + i)
             print(i + ' created')
-            if not os.path.exists(output_path + '/' + i + dataset_name):
+            if not os.path.exists(output_path + '/' + i + '/' + dataset_name):
                 os.makedirs(output_path + '/' + i + '/' + dataset_name)
                 print(i + '/' + dataset_name + ' created')
             else:
@@ -135,15 +139,14 @@ def extract_ds_name(input_path: Path) -> str:
     return dataset_name
 
 
-def delete_non_square(paths: List[Path], size=200):
+def delete_non_square(path: Path, size=200):
     deleted = 0
-    for path in paths:
+    for path in path.iterdir():
         image = tiff.imread(str(path))
         shape = image.shape
         if shape[-1] != size or shape[-2] != size:
             os.remove(str(path))
             deleted += 1
-            paths.remove(path)
 
     print(f"deleted {deleted} non square images.")
 
