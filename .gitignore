@@ -5,6 +5,7 @@
 *_DATA
 .DS_Store
 .vscode/
+Local/
 # the slash at the end indicates ignore at any level
 runs/
 __pycache__/
