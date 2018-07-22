@@ -6,10 +6,10 @@ from resources.conv_learner import *
 from typing import Union, List
 
 
-def dataset_source(source: Union[str, Path]) -> tuple:
+def dataset_source(source:  Path) -> tuple:
     test_dirs , train_dirs = [], []
 
-    for ds_dir in source.iterdir():
+    for ds_dir in [source / "train", source / "test"]:
         if 'DS_Store' not in str(ds_dir):
             for class_dir in ds_dir.iterdir():
                 if 'DS_Store' not in str(class_dir):
