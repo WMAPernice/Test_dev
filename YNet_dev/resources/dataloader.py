@@ -39,10 +39,12 @@ class DataLoader(object):
             raise ValueError('sampler is mutually exclusive with shuffle')
 
         if batch_sampler is None:
+
             if sampler is None:
                 sampler = RandomSampler(dataset) if shuffle else SequentialSampler(dataset)
-                if weights is not None: # (!)
-                    sampler = WeightedRandomSampler(weights, len(weights))
+            if weights is not None:  # (!)
+                sampler = WeightedRandomSampler(weights, len(weights))
+            print(f"using {type(sampler)} sampler")
             batch_sampler = BatchSampler(sampler, batch_size, drop_last)
 
         if num_workers is None:

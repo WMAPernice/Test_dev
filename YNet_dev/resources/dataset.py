@@ -6,6 +6,7 @@ from .core import *
 from .transforms import *
 from .layer_optimizer import *
 from .dataloader import DataLoader
+from collections import Counter
 
 # (!) added imports to allow open_image to function with skimage.io.imread(), file-extension agnostic.
 from skimage.external import tifffile
@@ -110,7 +111,6 @@ def folder_source(path, folder, d):
     fnames, lbls, all_lbls = read_dirs(path, folder)
     for idx, label in enumerate(all_lbls):
         d[label] = idx
-    print(d)
     idxs = [d[lbl] for lbl in lbls]
     lbl_arr = np.array(idxs, dtype=int)
     return fnames, lbl_arr, all_lbls
@@ -494,9 +494,8 @@ class ImageClassifierData(ImageData):
         """
         lbl2index = {}  # gets populated in the folder  source calls
         trn, val = [folder_source(path, o, lbl2index) for o in (trn_name, val_name)]
-        # check if unbalanced argument is True then do that thing boiiiiiiiii
         if balance:
-            weights = compute_weights(trn)
+            weights = compute_adjusted_weights(trn)
         else:
             weights = None
 
@@ -576,7 +575,7 @@ def split_by_idx(idxs, *a):
     return [(o[mask], o[~mask]) for o in a]
 
 
-def compute_weights(dataset):
+def compute_default_weights(dataset):
     """
     :param dataset: dataset[0]: samples and names e.g. generic_filename; dataset[1] labels e.g. 0 or 1
     :return: set of weights/probabilities for each sample; represents how often it is picked
@@ -584,11 +583,26 @@ def compute_weights(dataset):
     weights = np.zeros(len(dataset[1]))
     labels = list(set(dataset[1]))
     occurrences = np.bincount(dataset[1])
-    probs = [100*count/sum(occurrences) for count in occurrences]
+    probs = [100 * count/sum(occurrences) for count in occurrences]
 
     for idx, label in enumerate(labels):
         weights[dataset[1] == label] = probs[idx] / occurrences[idx]
 
+    return weights
+
+
+def compute_adjusted_weights(dataset):
+    """
+    :param dataset: dataset[0]: samples and names e.g. generic_filename; dataset[1] labels e.g. 0 or 1
+    :return: set of weights/probabilities for each sample; represents how often it is picked
+    """
+    weights = np.zeros(len(dataset[1]))
+    labels = list(set(dataset[1]))
+    occurrences = np.bincount(dataset[1])
+    probs = [100 * count/sum(occurrences) for count in occurrences]
+
+    for idx, label in enumerate(labels):
+        weights[dataset[1] == label] = probs[idx] / occurrences[idx]
     desired = 100 / len(labels) # desired probability per class
 
     for idx, prob in enumerate(probs):
@@ -599,6 +613,31 @@ def compute_weights(dataset):
     return weights
 
 
+def balance_ds(dataset):
+    """
+    :param dataset: 0: train filenames, 1: labels as indexes, classes
+    :return:
+    """
+    counter = Counter(dataset[1]) # count how many of each label in the dataset
+    print("BEFORE: ", counter)
 
+    # for efficiency purposes
+    dataset = list(dataset)
+    dataset[1] = list(dataset[1])
 
+    max_label, max_count = counter.most_common(1)[0]
+    for label in set(dataset[1]):
+        if label != max_label:
+            delta = max_count - counter[label]
+            additions = np.random.choice(dataset[0], delta, replace=False)
+            labels = [label] * delta
+            dataset[0].extend(additions)
+            dataset[1].extend(labels)
 
+    # conversion back to the old types
+    dataset[1] = np.array(dataset[1])
+    dataset = tuple(dataset)
+
+    counter = Counter(dataset[1])  # count how many of each label in the dataset after the adjustment
+    print("AFTER: ", counter)
+    return dataset

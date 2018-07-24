@@ -105,7 +105,7 @@ def set_train_mode(m):
 
 
 def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=Stepper,
-        swa_model=None, swa_start=None, swa_eval_freq=None, threshold=0,**kwargs): # (!) added threshold parameter
+        swa_model=None, swa_start=None, swa_eval_freq=None, threshold=[], adjust_class=None, **kwargs): # (!) added threshold parameter
     """ Fits a model
 
     Arguments:
@@ -186,16 +186,12 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
 
         print_dist.describe()
 
-
-        if epoch >= threshold and threshold != 0: # (!) batch distribution adjustment
-            if epoch == threshold:
-                print("STARTING batch distribution adjustment")
-            #  compute confusion matrix here
-            cm = compute_cm(model, cur_data.val_dl)
-            print(cm)
-            weights = compute_weights_distribution(cm, cur_data.trn_dl)
+        if adjust_class is not None:  # (!) batch distribution adjustment
+            # threshold is a list
+            print("STARTING batch distribution adjustment")
+            weights = adjust_weights(cur_data.val_dl, adjust_class)
             print(f"weights dist len=[{len(weights)}]; max=[{max(weights):4.3}]; min=[{min(weights):4.3}]")
-            cur_data.trn_dl.set_dynamic_weights(cm)
+            cur_data.trn_dl.set_dynamic_weights(weights)
 
         # (!) added per class accuracy
         per_class_accuracies(cur_data.val_dl, model, epoch)
@@ -421,7 +417,36 @@ def compute_cm(model, data_loader):
     return confusion_matrix(all_choices, all_ys)
 
 
-def compute_weights_distribution(cm, data_loader):
+def adjust_weights(data_loader, class_: int):
+    """
+    :param data_loader:
+    :param class_: chosen class int
+    :return:
+    """
+    # determine which class is failing
+    ys = [pair[1] for pair in data_loader.dataset]  # all ys
+    weights = np.zeros(len(ys))
+    labels = np.unique(ys)
+    occurrences = np.bincount(ys)
+    probs = [100 * count / sum(occurrences) for count in occurrences]
+
+    for idx, label in enumerate(labels):
+        weights[ys == label] = probs[idx] / occurrences[idx]
+
+    # compute desired weights
+    ratio = 60
+    other_classes = (100 - ratio) / (len(labels) - 2)
+    dist = [ratio if c == class_ else other_classes for c in labels]
+
+    for idx, desired_weight, current_weight in zip(range(len(labels)), dist, probs):
+        delta = desired_weight - current_weight
+        correction = delta / occurrences[idx]
+        weights[ys == labels[idx]] += correction
+
+    return weights
+
+
+def compute_weights_distribution(cm, data_loader): # (!)
     # determine which classes are often confused with each other
     if not isinstance(cm, np.ndarray): cm = np.array(cm)
     n = cm.shape[0]

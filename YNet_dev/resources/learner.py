@@ -133,7 +133,7 @@ class Learner():
     def fit_gen(self, model, data, layer_opt, n_cycle, cycle_len=None, cycle_mult=1, cycle_save_name=None,
                 best_save_name=None,
                 use_clr=None, use_clr_beta=None, metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False,
-                wds_sched_mult=None, use_swa=False, swa_start=1, swa_eval_freq=5, **kwargs):
+                wds_sched_mult=None, use_swa=False, swa_start=1, swa_eval_freq=5, adjust_class=None, **kwargs):
 
         """Method does sget_layer_optome preparation before finally delegating to the 'fit' method for
         fitting the model. Namely, if cycle_len is defined, it adds a 'Cosine Annealing'
@@ -250,7 +250,7 @@ class Learner():
         return fit(model, data, n_epoch, layer_opt.opt, self.crit,
                    metrics=metrics, callbacks=callbacks, reg_fn=self.reg_fn, clip=self.clip, fp16=self.fp16,
                    swa_model=self.swa_model if use_swa else None, swa_start=swa_start,
-                   swa_eval_freq=swa_eval_freq, **kwargs)
+                   swa_eval_freq=swa_eval_freq, adjust_class=adjust_class, **kwargs)  # (!) adjust class
 
     def get_layer_groups(self):
         return self.models.get_layer_groups()
@@ -277,7 +277,7 @@ class Learner():
         """
         return LayerOptimizer(self.opt_fn, self.get_layer_groups(), lrs, wds)
 
-    def fit(self, lrs, n_cycle, wds=None, **kwargs):
+    def fit(self, lrs, n_cycle, wds=None, adjust_class=None,**kwargs):
 
         """Method gets an instance of LayerOptimizer and delegates to self.fit_gen(..)
 
@@ -304,7 +304,7 @@ class Learner():
         """
         self.sched = None
         layer_opt = self.get_layer_opt(lrs, wds)
-        return self.fit_gen(self.model, self.data, layer_opt, n_cycle, **kwargs)
+        return self.fit_gen(self.model, self.data, layer_opt, n_cycle, adjust_class=adjust_class,**kwargs)
 
     def warm_up(self, lr, wds=None):
         layer_opt = self.get_layer_opt(lr / 4, wds)
