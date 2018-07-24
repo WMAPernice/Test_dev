@@ -189,7 +189,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         per_class_accuracies(cur_data.val_dl, model, epoch)
         if adjust_class is not None:  # (!) batch distribution adjustment
             # threshold is a list
-            weights = adjust_weights(cur_data.val_dl, adjust_class)
+            weights = adjust_weights(cur_data.trn_dl, adjust_class)
             print(f"weights dist len=[{len(weights)}]; max=[{max(weights):4.3}]; min=[{min(weights):4.3}]")
             cur_data.trn_dl.set_dynamic_weights(weights)
         else:
@@ -428,6 +428,7 @@ def adjust_weights(data_loader, class_: dict):
     weights = np.zeros(len(ys))
     labels = np.unique(ys)
     occurrences = np.bincount(ys)
+    print(occurrences)
     probs = [100 * count / sum(occurrences) for count in occurrences]
 
     for idx, label in enumerate(labels):
