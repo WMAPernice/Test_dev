@@ -48,11 +48,19 @@ class DataLoader(object):
         if num_workers is None:
             self.num_workers = num_cpus()
 
+        self.batch_size = batch_size  # (!)
+        self.drop_last = drop_last  # (!)
         self.sampler = sampler
         self.batch_sampler = batch_sampler
 
     def __len__(self):
         return len(self.batch_sampler)
+
+    def set_dynamic_weights(self, weights): # (!)
+        if isinstance(self.sampler, WeightedRandomSampler):
+            self.sampler = WeightedRandomSampler(weights, len(weights))
+            self.batch_sampler = BatchSampler(self.sampler, self.batch_size, self.drop_last)
+
 
     def jag_stack(self, b):
         if len(b[0].shape) not in (1, 2): return np.stack(b)
@@ -88,7 +96,7 @@ class DataLoader(object):
 
     def __iter__(self):
         if self.num_workers == 0:
-            for batch in map(self.get_batch, iter(self.batch_sampler)):
+            for batch in map(self.get_batch, iter(self.batch_sampler)):  # (!) map(self.get_batch, iter(self.)); we need a dynamic weights varibale passed in
                 yield get_tensor(batch, self.pin_memory, self.half)
         else:
             with ThreadPoolExecutor(max_workers=self.num_workers) as e:

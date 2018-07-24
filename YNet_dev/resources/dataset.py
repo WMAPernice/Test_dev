@@ -110,7 +110,7 @@ def folder_source(path, folder, d):
     fnames, lbls, all_lbls = read_dirs(path, folder)
     for idx, label in enumerate(all_lbls):
         d[label] = idx
-
+    print(d)
     idxs = [d[lbl] for lbl in lbls]
     lbl_arr = np.array(idxs, dtype=int)
     return fnames, lbl_arr, all_lbls
