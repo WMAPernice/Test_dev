@@ -298,8 +298,7 @@ class FilesDataset(BaseDataset):
 
 
         if len(arr.shape) == 3: arr = arr[None]
-        return self.transform.denorm(np.rollaxis(arr, 1, 4),
-                                     y)  ##(!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
+        return self.transform.denorm(np.rollaxis(arr, 1, 4), y)  ##(!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
 
 
 class FilesArrayDataset(FilesDataset):
