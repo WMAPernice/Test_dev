@@ -418,11 +418,11 @@ def compute_cm(model, data_loader):
     return confusion_matrix(all_choices, all_ys)
 
 
-def adjust_weights(data_loader, class_: int):
+def adjust_weights(data_loader, class_: dict):
     """
     :param data_loader:
-    :param class_: chosen class int
-    :return:
+    :param class_: dict that represents class ratios in the coming batches {0:50, 1:45}
+    :return: float array
     """
     # determine which class is failing
     ys = [pair[1] for pair in data_loader.dataset]  # all ys
@@ -435,10 +435,12 @@ def adjust_weights(data_loader, class_: int):
         weights[ys == label] = probs[idx] / occurrences[idx]
 
     # compute desired weights
-    ratio = 60
-    other_classes = (100 - ratio) / (len(labels) - 2)
-    dist = [ratio if c == class_ else other_classes for c in labels]
-
+    assert class_ != {}
+    total = sum(value for _, value in class_.items())
+    assert total <= 100
+    other_classes = (100 - total) / (len(labels) - len(class_))
+    dist = [class_[label] if label in class_ else other_classes for label in labels]
+    print(f"weight distribution: {dist}")
     for idx, desired_weight, current_weight in zip(range(len(labels)), dist, probs):
         delta = desired_weight - current_weight
         correction = delta / occurrences[idx]
