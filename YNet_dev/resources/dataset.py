@@ -576,9 +576,9 @@ def split_by_idx(idxs, *a):
     mask[np.array(idxs)] = True
     return [(o[mask], o[~mask]) for o in a]
 
+
 def compute_weights(dataset):
     """
-
     :param dataset: dataset[0]: samples and names e.g. generic_filename; dataset[1] labels e.g. 0 or 1
     :return: set of weights/probabilities for each sample; represents how often it is picked
     """
@@ -590,13 +590,11 @@ def compute_weights(dataset):
     for idx, label in enumerate(labels):
         weights[dataset[1] == label] = probs[idx] / occurrences[idx]
 
-
     desired = 100 / len(labels) # desired probability per class
 
     for idx, prob in enumerate(probs):
         delta = desired - prob # unlikely to be 0
         correction = delta / occurrences[idx]
-        print(correction)
         weights[dataset[1] == labels[idx]] += correction
 
     return weights
