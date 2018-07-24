@@ -183,22 +183,20 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                 if cur_data != data[phase]:
                     t.close()
                     break
-
+        # (!) added per class accuracy
+        print(f"EPOCH {epoch} {'-' * 15}")
         print_dist.describe()
-
+        per_class_accuracies(cur_data.val_dl, model, epoch)
         if adjust_class is not None:  # (!) batch distribution adjustment
             # threshold is a list
-            print("STARTING batch distribution adjustment")
             weights = adjust_weights(cur_data.val_dl, adjust_class)
             print(f"weights dist len=[{len(weights)}]; max=[{max(weights):4.3}]; min=[{min(weights):4.3}]")
             cur_data.trn_dl.set_dynamic_weights(weights)
         else:
             cur_data.trn_dl.reset_sampler()
-        # (!) added per class accuracy
-        per_class_accuracies(cur_data.val_dl, model, epoch)
 
-        # (!) added f1 score logging to tensorboard
-        log_f1_score(cur_data.val_dl, model, epoch)
+
+
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
             stop = False
@@ -216,6 +214,8 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
 
             if hasattr(model,'writer'):  # (!) added a tensorboard logger
                 tensorboard_log(model, epoch, [debias_loss] + vals)
+                # (!) added f1 score logging to tensorboard
+                log_f1_score(cur_data.val_dl, model, epoch)
 
             ep_vals = append_stats(ep_vals, epoch, [debias_loss] + vals)
 
@@ -373,8 +373,7 @@ def per_class_accuracies(data_loader, model, epoch:int):  # (!) may not work for
 
             class_correct[label] += is_correct[idx]
             class_total[label] += 1
-    print("class totals: ",class_total)
-    print("class correct: ",class_correct)
+
     accuracy = {str(label): 100. * correct / class_total[label] for label, correct in class_correct.items()}
     if hasattr(model,'writer'):
         model.writer.add_scalars("class_accuracies", accuracy, epoch)
@@ -439,9 +438,9 @@ def adjust_weights(data_loader, class_: dict):
     total = sum(value for _, value in class_.items())
     assert total <= 100
     other_classes = (100 - total) / (len(labels) - len(class_))
-    dist = [class_[label] if label in class_ else other_classes for label in labels]
-    print(f"weight distribution: {dist}")
-    for idx, desired_weight, current_weight in zip(range(len(labels)), dist, probs):
+    desired = [class_[label] if label in class_ else other_classes for label in labels]
+    print(f"weight distribution: {desired}")
+    for idx, desired_weight, current_weight in zip(range(len(labels)), desired, probs):
         delta = desired_weight - current_weight
         correction = delta / occurrences[idx]
         weights[ys == labels[idx]] += correction
@@ -509,7 +508,7 @@ def log_f1_score(data_loader, model, epoch):
         all_ys.extend(y)
     wscore = f1_score(all_ys, all_choices,average='weighted')
     model.writer.add_scalar("f1_weighted_score", wscore, epoch)
-    print(f"f1 weighted average score: [{wscore}]")
+    print(f"f1 weighted average score: [{wscore}:4.4]")
     per_class_scores = f1_score(all_ys,all_choices,average=None)
     scores_dict = {str(label):value for label, value in enumerate(per_class_scores)}
     model.writer.add_scalars('f1_scores_per_class', scores_dict, epoch)
