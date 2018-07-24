@@ -192,7 +192,8 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             weights = adjust_weights(cur_data.val_dl, adjust_class)
             print(f"weights dist len=[{len(weights)}]; max=[{max(weights):4.3}]; min=[{min(weights):4.3}]")
             cur_data.trn_dl.set_dynamic_weights(weights)
-
+        else:
+            cur_data.trn_dl.reset_sampler()
         # (!) added per class accuracy
         per_class_accuracies(cur_data.val_dl, model, epoch)
 
