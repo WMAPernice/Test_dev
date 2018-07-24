@@ -190,7 +190,6 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         if adjust_class is not None:  # (!) batch distribution adjustment
             # threshold is a list
             weights = adjust_weights(cur_data.trn_dl, adjust_class)
-            print(f"weights dist len=[{len(weights)}]; max=[{max(weights):4.3}]; min=[{min(weights):4.3}]")
             cur_data.trn_dl.set_dynamic_weights(weights)
         else:
             cur_data.trn_dl.reset_sampler()
@@ -423,16 +422,10 @@ def adjust_weights(data_loader, class_: dict):
     :param class_: dict that represents class ratios in the coming batches {0:50, 1:45}
     :return: float array
     """
-    # determine which class is failing
     ys = [pair[1] for pair in data_loader.dataset]  # all ys
     weights = np.zeros(len(ys))
     labels = np.unique(ys)
     occurrences = np.bincount(ys)
-    print(occurrences)
-    probs = [100 * count / sum(occurrences) for count in occurrences]
-
-    for idx, label in enumerate(labels):
-        weights[ys == label] = probs[idx] / occurrences[idx]
 
     # compute desired weights
     assert class_ != {}
@@ -441,10 +434,8 @@ def adjust_weights(data_loader, class_: dict):
     other_classes = (100 - total) / (len(labels) - len(class_))
     desired = [class_[label] if label in class_ else other_classes for label in labels]
 
-    print(f"weight distribution: {desired}")
-    for idx, desired_weight, current_weight in zip(range(len(labels)), desired, probs):
-        delta = desired_weight - current_weight
-        correction = delta / occurrences[idx]
+    for idx, desired_weight in zip(range(len(labels)), desired):
+        correction = desired_weight / occurrences[idx]
         weights[ys == labels[idx]] += correction
 
     return weights
