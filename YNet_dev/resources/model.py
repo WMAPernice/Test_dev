@@ -156,8 +156,19 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             val_iter = IterBatch(cur_data.val_dl)
         print_dist = PrintDistribution()
 
+        per_class_accuracies(cur_data.val_dl, model, epoch)
+        if adjust_class is not None:  # (!) batch distribution adjustment
+            # threshold is a list
+            weights = adjust_weights(cur_data.trn_dl, adjust_class)
+            cur_data.trn_dl.set_dynamic_weights(weights)
+        else:
+            cur_data.trn_dl.reset_sampler()
+
+
         for (*x, y) in t:
+
             print_dist(y)
+
             batch_num += 1
             for cb in callbacks: cb.on_batch_begin()
             loss = model_stepper.step(V(x), V(y), epoch)
@@ -186,15 +197,6 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         # (!) added per class accuracy
         print(f"EPOCH {epoch} {'-' * 15}")
         print_dist.describe()
-        per_class_accuracies(cur_data.val_dl, model, epoch)
-        if adjust_class is not None:  # (!) batch distribution adjustment
-            # threshold is a list
-            weights = adjust_weights(cur_data.trn_dl, adjust_class)
-            cur_data.trn_dl.set_dynamic_weights(weights)
-        else:
-            cur_data.trn_dl.reset_sampler()
-
-
 
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
@@ -426,6 +428,7 @@ def adjust_weights(data_loader, class_: dict):
     weights = np.zeros(len(ys))
     labels = np.unique(ys)
     occurrences = np.bincount(ys)
+    print(occurrences)
 
     # compute desired weights
     assert class_ != {}
@@ -483,15 +486,20 @@ def compute_weights_distribution(cm, data_loader): # (!)
 
 
 class PrintDistribution:
-    ys = []
+    def __init__(self):
+        self.ps = []
 
-    def __call__(self, ys):
-        self.ys.extend(ys.cpu().numpy().copy())  # gonna eat up a lot of memory
+    def __call__(self, y):
+        y = y.cpu().numpy().copy()  # gonna eat up a lot of memory
+        occurences = np.bincount(y)
+        occurences /= sum(occurences)
+
+        self.ps.append(occurences)
 
     def describe(self):
-        occurrences = np.bincount(self.ys)
-        probs = [int(100 * count/sum(occurrences)) for count in occurrences]
-        print("batch distribution: ", probs)
+        mean = np.mean(self.ps, axis=0)
+        stdev = np.std(self.ps, axis=0)
+        print(f"mean: {mean}; stdev: {stdev}")
 
 
 def log_f1_score(data_loader, model, epoch):
