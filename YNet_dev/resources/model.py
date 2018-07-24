@@ -439,6 +439,7 @@ def adjust_weights(data_loader, class_: dict):
     assert total <= 100
     other_classes = (100 - total) / (len(labels) - len(class_))
     desired = [class_[label] if label in class_ else other_classes for label in labels]
+
     print(f"weight distribution: {desired}")
     for idx, desired_weight, current_weight in zip(range(len(labels)), desired, probs):
         delta = desired_weight - current_weight
@@ -508,7 +509,7 @@ def log_f1_score(data_loader, model, epoch):
         all_ys.extend(y)
     wscore = f1_score(all_ys, all_choices,average='weighted')
     model.writer.add_scalar("f1_weighted_score", wscore, epoch)
-    print(f"f1 weighted average score: [{wscore}:4.4]")
+    print(f"f1 weighted average score: [{wscore:4.4}]")
     per_class_scores = f1_score(all_ys,all_choices,average=None)
     scores_dict = {str(label):value for label, value in enumerate(per_class_scores)}
     model.writer.add_scalars('f1_scores_per_class', scores_dict, epoch)
