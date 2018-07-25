@@ -154,7 +154,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         t = tqdm(iter(cur_data.trn_dl), leave=False, total=num_batch) # essentially an equivalent for (for batch,y in data)
         if all_val:
             val_iter = IterBatch(cur_data.val_dl)
-        print_dist = PrintDistribution()
+
 
         per_class_accuracies(cur_data.val_dl, model, epoch)
         if adjust_class is not None:  # (!) batch distribution adjustment
@@ -167,7 +167,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
 
         for (*x, y) in t:
 
-            print_dist(y)
+
 
             batch_num += 1
             for cb in callbacks: cb.on_batch_begin()
@@ -196,7 +196,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                     break
         # (!) added per class accuracy
         print(f"EPOCH {epoch} {'-' * 15}")
-        print_dist.describe()
+
 
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
