@@ -19,19 +19,25 @@ def dataset_source(source:  Path) -> tuple:
 
 class Statistics:
     @staticmethod
-    def per_class(test_dirs: List[Path], train_dirs: List[Path], norm_value=65536, save_name='') -> dict:
+    def read_class(class_dir:Path, class_images: List):
+        for file in class_dir.iterdir():
+            file_name = str(file)
+            if '.tif' in file_name:
+                image = tiff.imread(file_name)
+                class_images.append(image)
+
+    @staticmethod
+    def per_class(val_dirs: List[Path], train_dirs: List[Path], norm_value=65536, save_name='') -> dict:
         stats = {}
 
-        class_dirs = zip(test_dirs, train_dirs)
-        for test, train in class_dirs:
+        class_dirs = zip(val_dirs, train_dirs)
+        for datasets in class_dirs:
 
-            class_name = test.name
+            class_name = dataset.name + '_' if isinstance(datasets, Path) else datasets[0].name
             class_images = []
-            for dir_ in [test, train]:
+            for dir_ in datasets: # test, train
                 # read from each dir and append to the images
-                for file in dir_.iterdir():
-                    image = tiff.imread(str(file))
-                    class_images.append(image)
+                Statistics.read_class(dir_, class_images)
 
             print(f"working on: {class_name}")
             mean = np.mean(class_images, axis=(0, 2, 3)) / norm_value
@@ -43,7 +49,7 @@ class Statistics:
             Statistics.pickle(stats, save_name+".per_class.dict")  # if save is given it should be a string; empty strings are false
 
         return stats
-
+    
     @staticmethod
     def pickle(stats, name="stats.dict") -> None:
         with open(name, 'wb') as file:

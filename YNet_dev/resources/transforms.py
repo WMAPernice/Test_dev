@@ -833,7 +833,7 @@ def tfms_from_stats_dict(tfms_dict, sz, aug_tfms=None, max_zoom=None, pad=0, cro
                         tfm_y=tfm_y, sz_y=sz_y, scale=scale)
     trn_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=crop_type,
                         tfm_y=tfm_y, sz_y=sz_y, tfms=aug_tfms, max_zoom=max_zoom, pad_mode=pad_mode, scale=scale)
-    return trn_tfm, val_tfm
+    return trn_tfm, val_tfmval_tfm
 
 
 def tfms_from_stats(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
