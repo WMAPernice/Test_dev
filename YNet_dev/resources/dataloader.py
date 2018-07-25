@@ -39,10 +39,11 @@ class DataLoader(object):
             raise ValueError('sampler is mutually exclusive with shuffle')
 
         if batch_sampler is None:
+
             if sampler is None:
                 sampler = RandomSampler(dataset) if shuffle else SequentialSampler(dataset)
-                if weights is not None: # (!)
-                    sampler = WeightedRandomSampler(weights, len(weights))
+            if weights is not None:  # (!)
+                sampler = WeightedRandomSampler(weights, len(weights))
             batch_sampler = BatchSampler(sampler, batch_size, drop_last)
 
         if num_workers is None:
@@ -56,10 +57,13 @@ class DataLoader(object):
     def __len__(self):
         return len(self.batch_sampler)
 
-    def set_dynamic_weights(self, weights): # (!)
-        if isinstance(self.sampler, WeightedRandomSampler):
-            self.sampler = WeightedRandomSampler(weights, len(weights))
-            self.batch_sampler = BatchSampler(self.sampler, self.batch_size, self.drop_last)
+    def reset_sampler(self):
+        self.sampler = RandomSampler(self.dataset)
+        self.batch_sampler = BatchSampler(self.sampler, self.batch_size, self.drop_last)
+
+    def set_dynamic_weights(self, weights):  # (!)
+        self.sampler = WeightedRandomSampler(weights, len(weights))
+        self.batch_sampler = BatchSampler(self.sampler, self.batch_size, self.drop_last)
 
 
     def jag_stack(self, b):
