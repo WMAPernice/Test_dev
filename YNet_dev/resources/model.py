@@ -155,12 +155,24 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         t = tqdm(iter(cur_data.trn_dl), leave=False, total=num_batch) # essentially an equivalent for (for batch,y in data)
         if all_val:
             val_iter = IterBatch(cur_data.val_dl)
+<<<<<<< HEAD
+=======
+
+
+        per_class_accuracies(cur_data.val_dl, model, epoch)
+        if adjust_class is not None:  # (!) batch distribution adjustment
+            # threshold is a list
+            weights = adjust_weights(cur_data.trn_dl, adjust_class)
+            cur_data.trn_dl.set_dynamic_weights(weights)
+        else:
+            cur_data.trn_dl.reset_sampler()
+>>>>>>> 1ebb29dbc2178e3b4c8d95306b8b06600ba59186
 
         print_dist = PrintDistribution(len(metrics_data.classes))
 
         for (*x, y) in t:
 
-            print_dist(y)
+
 
             batch_num += 1
             for cb in callbacks: cb.on_batch_begin()

@@ -112,6 +112,10 @@ def folder_source(path, folder, d):
     for idx, label in enumerate(all_lbls):
         d[label] = idx
     idxs = [d[lbl] for lbl in lbls]
+    
+    # temp = [idxs.index(i) for i in range(len(all_lbls))]
+    # for ii in temp: print(f"{idxs[ii]} maps to {fnames[ii]}")
+    
     lbl_arr = np.array(idxs, dtype=int)
     return fnames, lbl_arr, all_lbls
 
