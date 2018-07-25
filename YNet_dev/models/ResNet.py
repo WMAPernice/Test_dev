@@ -45,8 +45,10 @@ class ResNet(nn.Module):
         self.conv1 = nn.Conv2d(2, 10, kernel_size=5, stride=1, padding=2)
         self.layers = nn.ModuleList([BnLayer(layers[i], layers[i + 1])
                                      for i in range(len(layers) - 1)])
+
         self.layers2 = nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
                                       for i in range(len(layers) - 1)])
+
         self.layers3 = nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
                                       for i in range(len(layers) - 1)])
         self.out = nn.Linear(layers[-1], num_classes)

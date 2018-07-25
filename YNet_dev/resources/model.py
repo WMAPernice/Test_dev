@@ -8,7 +8,7 @@ from .fp16 import *
 from typing import Generator
 
 IS_TORCH_04 = LooseVersion(torch.__version__) >= LooseVersion('0.4')
-
+GLOBAL_STEP = 0
 
 def cut_model(m, cut):
     return list(m.children())[:cut] if cut else [m]
@@ -117,6 +117,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
        n_epochs(int or list): number of epochs (or list of number of epochs)
        crit: loss function to optimize. Example: F.cross_entropy
     """
+    metrics_data = data
 
     all_val = kwargs.pop('all_val') if 'all_val' in kwargs else False
     get_ep_vals = kwargs.pop('get_ep_vals') if 'get_ep_vals' in kwargs else False
@@ -155,19 +156,17 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         if all_val:
             val_iter = IterBatch(cur_data.val_dl)
 
-
-        per_class_accuracies(cur_data.val_dl, model, epoch)
+        print_dist = PrintDistribution(len(metrics_data.classes))
+        # (!) START batch distribution adjustment
         if adjust_class is not None:  # (!) batch distribution adjustment
             # threshold is a list
             weights = adjust_weights(cur_data.trn_dl, adjust_class)
             cur_data.trn_dl.set_dynamic_weights(weights)
         else:
             cur_data.trn_dl.reset_sampler()
-
-
+        # (!) END
         for (*x, y) in t:
-
-
+            print_dist(y)
 
             batch_num += 1
             for cb in callbacks: cb.on_batch_begin()
@@ -194,9 +193,12 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                 if cur_data != data[phase]:
                     t.close()
                     break
-        # (!) added per class accuracy
-        print(f"EPOCH {epoch} {'-' * 15}")
-
+        # (!) START logging
+        global GLOBAL_STEP
+        print(f"EPOCH {epoch} {'-' * 40} STEP {GLOBAL_STEP}")
+        print_dist.describe()
+        per_class_accuracies(metrics_data, model, GLOBAL_STEP)
+        # (!) END
 
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
@@ -214,11 +216,13 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             print_stats(epoch, [debias_loss] + vals)
 
             if hasattr(model,'writer'):  # (!) added a tensorboard logger
-                tensorboard_log(model, epoch, [debias_loss] + vals)
+                tensorboard_log(model, GLOBAL_STEP, [debias_loss] + vals)
                 # (!) added f1 score logging to tensorboard
-                log_f1_score(cur_data.val_dl, model, epoch)
+                log_f1_score(metrics_data.val_dl, model, GLOBAL_STEP)
 
             ep_vals = append_stats(ep_vals, epoch, [debias_loss] + vals)
+
+        GLOBAL_STEP += 1  # (!)
 
         if stop:
             break
@@ -361,21 +365,22 @@ def model_summary(m, input_size):
     return summary
 
 
-def per_class_accuracies(data_loader, model, epoch:int):  # (!) may not work for non classification problems
+def per_class_accuracies(data, model, epoch:int):  # (!) may not work for non classification problems
 
     class_correct, class_total = {}, {}
+    data_loader = data.val_dl
+    log_predictions, targets = predict_with_targs(model, data_loader)
+    predictions = np.exp(log_predictions)
+    choices = np.argmax(predictions, axis=1)
+    for choice, truth in zip(choices, targets):
+        if truth not in class_total:
+            class_correct[truth] = 0
+            class_total[truth] = 0
+        class_correct[truth] += int(choice == truth)
+        class_total[truth] += 1
 
-    for is_correct, _, x, y in compute_predictions(model, data_loader):
-        for idx, label in enumerate(y):
-            if label not in class_correct:
-                class_correct[label] = 0
-            if label not in class_total:
-                class_total[label] = 0
+    accuracy = {data.classes[label]: 100. * correct / class_total[label] for label, correct in class_correct.items()}
 
-            class_correct[label] += is_correct[idx]
-            class_total[label] += 1
-
-    accuracy = {str(label): 100. * correct / class_total[label] for label, correct in class_correct.items()}
     if hasattr(model,'writer'):
         model.writer.add_scalars("class_accuracies", accuracy, epoch)
     for label, accuracy in accuracy.items():
@@ -486,30 +491,31 @@ def compute_weights_distribution(cm, data_loader): # (!)
 
 
 class PrintDistribution:
-    def __init__(self):
+    def __init__(self,num_classes):
         self.ps = []
+        self.num_classes = num_classes
 
     def __call__(self, y):
         y = y.cpu().numpy().copy()  # gonna eat up a lot of memory
-        occurences = np.bincount(y)
-        occurences /= sum(occurences)
+        occurences = np.bincount(y, minlength=self.num_classes)
 
-        self.ps.append(occurences)
+        percentages = np.array([int(100 * count / sum(occurences)) for count in occurences])
+        self.ps.append(percentages)
 
     def describe(self):
+        self.ps = np.stack(self.ps)
         mean = np.mean(self.ps, axis=0)
         stdev = np.std(self.ps, axis=0)
-        print(f"mean: {mean}; stdev: {stdev}")
+        print(f"mean: {mean}; stdev: {stdev}\n")
 
 
 def log_f1_score(data_loader, model, epoch):
-    all_choices, all_ys = [], []
-    for _, choices, _, y in compute_predictions(model, data_loader):
-        all_choices.extend(choices)
-        all_ys.extend(y)
-    wscore = f1_score(all_ys, all_choices,average='weighted')
+    log_predictions, targets = predict_with_targs(model, data_loader)
+    predictions = np.exp(log_predictions)
+    choices = np.argmax(predictions, axis=1)
+    wscore = f1_score(targets, choices, average='weighted')
     model.writer.add_scalar("f1_weighted_score", wscore, epoch)
     print(f"f1 weighted average score: [{wscore:4.4}]")
-    per_class_scores = f1_score(all_ys,all_choices,average=None)
+    per_class_scores = f1_score(targets, choices, average=None)
     scores_dict = {str(label):value for label, value in enumerate(per_class_scores)}
     model.writer.add_scalars('f1_scores_per_class', scores_dict, epoch)
