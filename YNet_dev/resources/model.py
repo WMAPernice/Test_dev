@@ -157,7 +157,14 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             val_iter = IterBatch(cur_data.val_dl)
 
         print_dist = PrintDistribution(len(metrics_data.classes))
-
+        # (!) START batch distribution adjustment
+        if adjust_class is not None:  # (!) batch distribution adjustment
+            # threshold is a list
+            weights = adjust_weights(cur_data.trn_dl, adjust_class)
+            cur_data.trn_dl.set_dynamic_weights(weights)
+        else:
+            cur_data.trn_dl.reset_sampler()
+        # (!) END
         for (*x, y) in t:
             print_dist(y)
 
@@ -186,19 +193,10 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                 if cur_data != data[phase]:
                     t.close()
                     break
-        # (!) START
-        # for accurate tb logging
+        # (!) START logging
         global GLOBAL_STEP
-
         print(f"EPOCH {epoch} {'-' * 40} STEP {GLOBAL_STEP}")
         print_dist.describe()
-        if adjust_class is not None:  # (!) batch distribution adjustment
-            # threshold is a list
-            weights = adjust_weights(cur_data.trn_dl, adjust_class)
-            cur_data.trn_dl.set_dynamic_weights(weights)
-        else:
-            cur_data.trn_dl.reset_sampler()
-
         per_class_accuracies(metrics_data, model, GLOBAL_STEP)
         # (!) END
 
@@ -512,13 +510,12 @@ class PrintDistribution:
 
 
 def log_f1_score(data_loader, model, epoch):
-    all_choices, all_ys = [], []
-    for _, choices, _, y in compute_predictions(model, data_loader):
-        all_choices.extend(choices)
-        all_ys.extend(y)
-    wscore = f1_score(all_ys, all_choices,average='weighted')
+    log_predictions, targets = predict_with_targs(model, data_loader)
+    predictions = np.exp(log_predictions)
+    choices = np.argmax(predictions, axis=1)
+    wscore = f1_score(targets, choices, average='weighted')
     model.writer.add_scalar("f1_weighted_score", wscore, epoch)
     print(f"f1 weighted average score: [{wscore:4.4}]")
-    per_class_scores = f1_score(all_ys,all_choices,average=None)
+    per_class_scores = f1_score(targets, choices, average=None)
     scores_dict = {str(label):value for label, value in enumerate(per_class_scores)}
     model.writer.add_scalars('f1_scores_per_class', scores_dict, epoch)
