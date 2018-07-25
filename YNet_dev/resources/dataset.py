@@ -110,8 +110,11 @@ def folder_source(path, folder, d):
     fnames, lbls, all_lbls = read_dirs(path, folder)
     for idx, label in enumerate(all_lbls):
         d[label] = idx
-    print(d)
     idxs = [d[lbl] for lbl in lbls]
+    
+    # temp = [idxs.index(i) for i in range(len(all_lbls))]
+    # for ii in temp: print(f"{idxs[ii]} maps to {fnames[ii]}")
+    
     lbl_arr = np.array(idxs, dtype=int)
     return fnames, lbl_arr, all_lbls
 
@@ -494,7 +497,7 @@ class ImageClassifierData(ImageData):
         """
         lbl2index = {}  # gets populated in the folder  source calls
         trn, val = [folder_source(path, o, lbl2index) for o in (trn_name, val_name)]
-        # check if unbalanced argument is True then do that thing boiiiiiiiii
+        # (!) check if unbalanced argument is True then do that thing boiiiiiiiii
         if balance:
             weights = compute_weights(trn)
         else:

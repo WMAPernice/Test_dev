@@ -199,9 +199,6 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
 
         # (!) added per class accuracy
         per_class_accuracies(cur_data.val_dl, model, epoch)
-
-        # (!) added f1 score logging to tensorboard
-        log_f1_score(cur_data.val_dl, model, epoch)
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
             stop = False
@@ -219,6 +216,9 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
 
             if hasattr(model,'writer'):  # (!) added a tensorboard logger
                 tensorboard_log(model, epoch, [debias_loss] + vals)
+                
+                # (!) added f1 score logging to tensorboard
+                log_f1_score(cur_data.val_dl, model, epoch)
 
             ep_vals = append_stats(ep_vals, epoch, [debias_loss] + vals)
 
