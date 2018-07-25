@@ -155,24 +155,11 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         t = tqdm(iter(cur_data.trn_dl), leave=False, total=num_batch) # essentially an equivalent for (for batch,y in data)
         if all_val:
             val_iter = IterBatch(cur_data.val_dl)
-<<<<<<< HEAD
-=======
-
-
-        per_class_accuracies(cur_data.val_dl, model, epoch)
-        if adjust_class is not None:  # (!) batch distribution adjustment
-            # threshold is a list
-            weights = adjust_weights(cur_data.trn_dl, adjust_class)
-            cur_data.trn_dl.set_dynamic_weights(weights)
-        else:
-            cur_data.trn_dl.reset_sampler()
->>>>>>> 1ebb29dbc2178e3b4c8d95306b8b06600ba59186
 
         print_dist = PrintDistribution(len(metrics_data.classes))
 
         for (*x, y) in t:
-
-
+            print_dist(y)
 
             batch_num += 1
             for cb in callbacks: cb.on_batch_begin()
@@ -384,16 +371,15 @@ def per_class_accuracies(data, model, epoch:int):  # (!) may not work for non cl
 
     class_correct, class_total = {}, {}
     data_loader = data.val_dl
-
-    for is_correct, _, x, y in compute_predictions(model, data_loader):
-        for idx, label in enumerate(y):
-            if label not in class_correct:
-                class_correct[label] = 0
-            if label not in class_total:
-                class_total[label] = 0
-
-            class_correct[label] += is_correct[idx]
-            class_total[label] += 1
+    log_predictions, targets = predict_with_targs(model, data_loader)
+    predictions = np.exp(log_predictions)
+    choices = np.argmax(predictions, axis=1)
+    for choice, truth in zip(choices, targets):
+        if truth not in class_total:
+            class_correct[truth] = 0
+            class_total[truth] = 0
+        class_correct[truth] += int(choice == truth)
+        class_total[truth] += 1
 
     accuracy = {data.classes[label]: 100. * correct / class_total[label] for label, correct in class_correct.items()}
 
