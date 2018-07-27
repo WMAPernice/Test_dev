@@ -90,5 +90,3 @@ class Statistics:
 
         print(f"sources [{len(images)}] images")
         return images
-
-

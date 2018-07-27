@@ -109,8 +109,10 @@ def folder_source(path, folder, d):
     lbl_arr: a numpy array of the label indices in `all_lbls`
     """
     fnames, lbls, all_lbls = read_dirs(path, folder)
-    for idx, label in enumerate(all_lbls):
-        d[label] = idx
+    print(path, d)
+    if d == {}:
+        for idx, label in enumerate(all_lbls):
+            d[label] = idx
     idxs = [d[lbl] for lbl in lbls]
     
     # temp = [idxs.index(i) for i in range(len(all_lbls))]
@@ -504,10 +506,9 @@ class ImageClassifierData(ImageData):
             weights = None
 
         if test_name:
-            test = folder_source(path, test_name, {}) if test_with_labels else read_dir(path, test_name)
+            test = folder_source(path, test_name, lbl2index) if test_with_labels else read_dir(path, test_name)
         else:
             test = None
-
         def create(tfms):
             datasets = cls.get_ds(FilesIndexArrayDataset, trn, val, tfms, path=path, test=test)
             return cls(path, datasets, bs, num_workers, classes=trn[2], balance=weights)
