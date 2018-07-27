@@ -4,12 +4,15 @@ from datetime import datetime
 import os
 
 class BnLayer(nn.Module):
-    def __init__(self, ni, nf, stride=2, kernel_size=3):
+    def __init__(self, ni, nf, stride=2, kernel_size=3,log=False):
         super().__init__()
         self.conv = nn.Conv2d(ni, nf, kernel_size=kernel_size, stride=stride,
                               bias=False, padding=1)
         self.a = nn.Parameter(torch.zeros(nf, 1, 1))
         self.m = nn.Parameter(torch.ones(nf, 1, 1))
+        self.logs = []
+        self.log = log
+        if log: print('logging')
 
     def forward(self, x):
         x = F.relu(self.conv(x))
@@ -17,7 +20,10 @@ class BnLayer(nn.Module):
         if self.training:
             self.means = x_chan.mean(1)[:, None, None]
             self.stds = x_chan.std(1)[:, None, None]
-        return (x - self.means) / self.stds * self.m + self.a
+        self.result = (x - self.means) / self.stds * self.m + self.a # for hook purposes
+        if self.log :
+            self.logs.append(self.result)
+        return self.result
 
 class ResnetLayer(BnLayer):
     def forward(self, x): return x + super().forward(x)
@@ -49,7 +55,7 @@ class ResNet(nn.Module):
         self.layers2 = nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
                                       for i in range(len(layers) - 1)])
 
-        self.layers3 = nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1)
+        self.layers3 = nn.ModuleList([ResnetLayer(layers[i + 1], layers[i + 1], 1, log=(True if (i == (len(layers) - 2)) else False ))
                                       for i in range(len(layers) - 1)])
         self.out = nn.Linear(layers[-1], num_classes)
 

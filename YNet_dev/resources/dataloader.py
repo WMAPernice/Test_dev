@@ -61,9 +61,10 @@ class DataLoader(object):
         self.sampler = RandomSampler(self.dataset)
         self.batch_sampler = BatchSampler(self.sampler, self.batch_size, self.drop_last)
 
-    def set_dynamic_weights(self, weights):  # (!)
+    def set_dynamic_sampler(self, weights, batch_size=None):  # (!)
+        batch_size = batch_size if batch_size is not None else self.batch_size
         self.sampler = WeightedRandomSampler(weights, len(weights))
-        self.batch_sampler = BatchSampler(self.sampler, self.batch_size, self.drop_last)
+        self.batch_sampler = BatchSampler(self.sampler, batch_size, self.drop_last)
 
 
     def jag_stack(self, b):

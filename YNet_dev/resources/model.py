@@ -105,7 +105,7 @@ def set_train_mode(m):
 
 
 def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=Stepper,
-        swa_model=None, swa_start=None, swa_eval_freq=None, threshold=[], adjust_class=None, **kwargs): # (!) added threshold parameter
+        swa_model=None, swa_start=None, swa_eval_freq=None, adjust_class=None, **kwargs): # (!) added threshold parameter
     """ Fits a model
 
     Arguments:
@@ -159,9 +159,11 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         print_dist = PrintDistribution(len(metrics_data.classes))
         # (!) START batch distribution adjustment
         if adjust_class is not None:  # (!) batch distribution adjustment
+            # adjust class: (dict, bs)
+            #
             # threshold is a list
-            weights = adjust_weights(cur_data.trn_dl, adjust_class)
-            cur_data.trn_dl.set_dynamic_weights(weights)
+            weights = adjust_weights(cur_data.trn_dl, adjust_class[0])
+            cur_data.trn_dl.set_dynamic_sampler(weights)
         else:
             cur_data.trn_dl.reset_sampler()
         # (!) END
@@ -506,7 +508,7 @@ class PrintDistribution:
         self.ps = np.stack(self.ps)
         mean = np.mean(self.ps, axis=0)
         stdev = np.std(self.ps, axis=0)
-        print(f"mean: {mean}; stdev: {stdev}\n")
+        print(f"mean: {mean}\nstdev: {stdev}\n")
 
 
 def log_f1_score(data_loader, model, epoch):
