@@ -50,7 +50,7 @@ class Statistics:
             Statistics.pickle(stats, save_name+".per_class.dict")  # if save is given it should be a string; empty strings are false
 
         return stats
-
+    
     @staticmethod
     def pickle(stats, name="stats.dict") -> None:
         with open(name, 'wb') as file:
