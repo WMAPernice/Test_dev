@@ -287,7 +287,7 @@ class Learner():
         """
         return LayerOptimizer(self.opt_fn, self.get_layer_groups(), lrs, wds)
 
-    def fit(self, lrs, n_cycle, wds=None, adjust_class=None,**kwargs):
+    def fit(self, lrs, n_cycle, wds=None, adjust_class=None, **kwargs):
 
         """Method gets an instance of LayerOptimizer and delegates to self.fit_gen(..)
 

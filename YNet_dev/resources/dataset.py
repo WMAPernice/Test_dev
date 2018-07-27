@@ -448,7 +448,7 @@ class ImageData(ModelData):
             else:
                 test_lbls = np.zeros((len(test), 1))
             res += [
-                fn(test, test_lbls, tfms[1], **kwargs),  # test
+                fn(test, test_lbls, tfms[2], **kwargs),  # test (!) 1 -> 2
                 fn(test, test_lbls, tfms[0], **kwargs)  # test_aug
             ]
         else:
@@ -504,7 +504,7 @@ class ImageClassifierData(ImageData):
             weights = None
 
         if test_name:
-            test = folder_source(path, test_name, lbl2index) if test_with_labels else read_dir(path, test_name)
+            test = folder_source(path, test_name, {}) if test_with_labels else read_dir(path, test_name)
         else:
             test = None
 
