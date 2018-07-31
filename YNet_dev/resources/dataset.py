@@ -481,7 +481,7 @@ class ImageClassifierData(ImageData):
         return cls(path, datasets, bs, num_workers, classes=classes)
 
     @classmethod
-
+    
     def prepare_from_path(cls, path, bs=64, trn_name='train', val_name='valid', test_name=None, test_with_labels=False,
                           num_workers=8,balance=False):
         """ Read in images and their labels given as sub-folder names
@@ -499,6 +499,8 @@ class ImageClassifierData(ImageData):
             ImageClassifierData
         """
         lbl2index = {}  # gets populated in the folder  source calls
+        test_lbl2index = {}
+
         trn, val = [folder_source(path, o, lbl2index) for o in (trn_name, val_name)]
         if balance:
             weights = compute_adjusted_weights(trn)
@@ -506,14 +508,14 @@ class ImageClassifierData(ImageData):
             weights = None
 
         if test_name:
-            test = folder_source(path, test_name, lbl2index) if test_with_labels else read_dir(path, test_name)
+            test = folder_source(path, test_name, test_lbl2index) if test_with_labels else read_dir(path, test_name)
         else:
             test = None
         def create(tfms):
             datasets = cls.get_ds(FilesIndexArrayDataset, trn, val, tfms, path=path, test=test)
             return cls(path, datasets, bs, num_workers, classes=trn[2], balance=weights)
 
-        return create, lbl2index
+        return create, lbl2index, test_lbl2index
 
     @classmethod
     def from_csv(cls, path, folder, csv_fname, bs=64, tfms=(None, None),
