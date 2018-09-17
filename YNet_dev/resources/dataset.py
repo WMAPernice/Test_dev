@@ -109,7 +109,8 @@ def folder_source(path, folder, d):
     lbl_arr: a numpy array of the label indices in `all_lbls`
     """
     fnames, lbls, all_lbls = read_dirs(path, folder)
-    print(path, d)
+    # print(path, d)
+    
     if d == {}:
         for idx, label in enumerate(all_lbls):
             d[label] = idx

@@ -40,7 +40,8 @@ class Statistics:
                     image = tiff.imread(str(file))
                     class_images.append(image)
 
-                print(f"working on: {class_name}")
+                # print(f"working on: {class_name}")
+                print(f"working on: {class_dir}")
                 mean = np.mean(class_images, axis=(0, 2, 3)) / norm_value
                 stdev = np.std(class_images, axis=(0, 2, 3)) / norm_value
 
