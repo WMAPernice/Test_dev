@@ -200,7 +200,14 @@ class Denormalize:
         return x*s+m
 
 class Normalize:
-    """ Normalizes an image to zero mean and unit standard deviation, given the mean m and std s of the original image """
+    """ Normalizes an image to zero mean and unit standard deviation, 
+        given the mean m and std s of the original image.
+
+        (!) Stats can be list or dict containing different m,s values for specific image collections
+        (!) Normalizes images according to their true source folder, no class labels (y); 
+            utilizes src_idx instead of y (class labels) created in 'folder_source' 
+    
+    """
 
     def __init__(self, stats, tfm_y=TfmType.NO):
         if isinstance(stats, dict):
@@ -209,15 +216,16 @@ class Normalize:
             m, s = stats
             self.m = np.array(m, dtype=np.float32)
             self.s = np.array(s, dtype=np.float32)
-            self.d = None  # (!) so we can check if it there
+            self.d = None  # (!) so we can check if it's there
 
         self.tfm_y=tfm_y
 
-    def __call__(self, x, y=None):
+    def __call__(self, x, y=None, src_idx=None):
         if self.d and y is not None:
-            m, s = self.d[y]
+            m, s = self.d[src_idx]
+            # print(f"source_index: {src_idx}")
+            # print(f"class_index: {y}")
         else:
-
             m,s = self.m, self.s
 
         x = (x-m) / s
@@ -712,12 +720,17 @@ class GoogleNetResize(CoordTransform):
                                 interpolation=interpolation)
 
 
-def compose(im, y, fns):
+def compose(im, y, src_idx, fns): # (!)
     """ apply a collection of transformation functions fns to images
+        (!) this calls e.g. 'normalize' with x and y inputs. 
     """
 
     for fn in fns:
-        im, y = fn(im, y)
+        if 'Normalize' in str(fn):
+            # print(fn) # (!)
+            im, y = fn(im, y, src_idx)
+        else: im, y = fn(im, y)
+
     return im if y is None else (im, y)
 
 
@@ -746,7 +759,7 @@ class Transforms:
         self.tfms.append(ChannelOrder(tfm_y))
 
 
-    def __call__(self, im, y=None): return compose(im, y, self.tfms)
+    def __call__(self, im, y=None, src_idx=None): return compose(im, y, src_idx, self.tfms) #(!)
 
     def __repr__(self): return str(self.tfms)
 

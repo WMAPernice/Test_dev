@@ -70,9 +70,9 @@ imageInfo = "";
 
 Dialog.create("Enter experiment info");
 
-Dialog.addString("Genotype:", "fzo1KO");
+Dialog.addString("Genotype:", "mmr1KO_mfb1KO");
 Dialog.addString("Experimenter Initials:", "WP");
-Dialog.addNumber("Your Unique Experiment Number:", 3); // e.g. 3 = YNet_Data_[03]
+Dialog.addNumber("Your Unique Experiment Number:", 2); // e.g. 3 = YNet_Data_[03]
 Dialog.addChoice("Mito:", MitoChoices);
 Dialog.addChoice("Stain:", stainChoices);
 Dialog.addChoice("Fixed/Live:",fixedChoices);

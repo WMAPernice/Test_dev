@@ -421,6 +421,8 @@ class Learner():
         preds1, targs = predict_with_targs(self.model, dl1)
         preds1 = [preds1] * math.ceil(n_aug / 4)
         preds2 = [predict_with_targs(self.model, dl2)[0] for i in tqdm(range(n_aug), leave=False)]
+        # print(preds1[0].shape)
+        # print(preds2[0].shape)
         return np.stack(preds1 + preds2), targs
 
     def fit_opt_sched(self, phases, cycle_save_name=None, best_save_name=None, stop_div=False, data_list=None,

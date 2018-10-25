@@ -101,27 +101,40 @@ def n_hot(ids, c):
 def folder_source(path, folder, d):
     """
     Returns the filenames and labels for a folder within a path
-    
+    (!) Modified to accomodate multiple source folders for a single class e.g. WT from Experiment 01 and 02
+
     Returns:
     -------
     fnames: a list of the filenames within `folder`
+    cls_idx_arr: a numpy array of the label indices in `u_classes` (indices per unique classes)
+    u_classes: a list of unique classes (e.g. genotypes) present in all_lbls
+    src_idx_arr: a numpy array of the label indices in 'all_lbls' (indices per labels in 'folder'), useful for normalization.
     all_lbls: a list of all of the labels in `folder`, where the # of labels is determined by the # of directories within `folder`
-    lbl_arr: a numpy array of the label indices in `all_lbls`
+    
     """
     fnames, lbls, all_lbls = read_dirs(path, folder)
-    # print(path, d)
+    
+    lbls2classes = {l: l.split('_')[1] for l in all_lbls} # (!) dict mapping lbls (folders) to classes (genotype)
+    u_classes = list(dict.fromkeys(list(lbls2classes.values()))) # (!) get unique classes
     
     if d == {}:
-        for idx, label in enumerate(all_lbls):
-            d[label] = idx
-    idxs = [d[lbl] for lbl in lbls]
+        d_cls = {label: idx for idx, label in enumerate(u_classes)}
+        d_src = {label_: idx_ for idx_, label_ in enumerate(all_lbls)}
+
+        # (!) populating d with lbls: class, class_idx   
+        for key, value in lbls2classes.items():
+            d[key] = [d_src[key], d_cls[value], lbls2classes[key]]
+
+    src_idxs  = [d[lbl][0] for lbl in lbls] # (!) using d to generate class-lables for each image
+    cls_idxs  = [d[lbl][1] for lbl in lbls] # (!) using d to generate source-lables (which dataset) for each image
+
+    src_idx_arr = np.array(src_idxs, dtype=int)
+    cls_idx_arr = np.array(cls_idxs, dtype=int)
     
     # temp = [idxs.index(i) for i in range(len(all_lbls))]
     # for ii in temp: print(f"{idxs[ii]} maps to {fnames[ii]}")
     
-    lbl_arr = np.array(idxs, dtype=int)
-    return fnames, lbl_arr, all_lbls
-
+    return fnames, cls_idx_arr, u_classes, src_idx_arr, all_lbls
 
 def parse_csv_labels(fn, skip_header=True, cat_separator=' '):
     """Parse filenames and label sets from a CSV file.
@@ -186,20 +199,27 @@ class BaseDataset(Dataset):
         self.sz = self.get_sz()
 
     def get1item(self, idx):
-        x, y = self.get_x(idx), self.get_y(idx)
-        return self.get(self.transform, x, y)
+        # x, y = self.get_x(idx), self.get_y(idx)
+        # return self.get(self.transform, x, y)
+        x, y, src_idx = self.get_x(idx), self.get_y(idx), self.get_src_idx(idx) #(!) src_idx
+        return self.get(self.transform, x, y, src_idx) #(!) src_idx       
 
     def __getitem__(self, idx):
+        # if isinstance(idx, slice):
+        #     xs, ys = zip(*[self.get1item(i) for i in range(*idx.indices(self.n))])
+        #     return np.stack(xs), ys
+        # return self.get1item(idx)
         if isinstance(idx, slice):
-            xs, ys = zip(*[self.get1item(i) for i in range(*idx.indices(self.n))])
-            return np.stack(xs), ys
-        return self.get1item(idx)
+            xs, ys, src_idxs = zip(*[self.get1item(i) for i in range(*idx.indices(self.n))]) #(!) src_idx
+            return np.stack(xs), ys, src_idxs #(!) src_idx
+        return self.get1item(idx)        
 
     def __len__(self):
         return self.n
 
-    def get(self, tfm, x, y):
-        return (x, y) if tfm is None else tfm(x, y)
+    def get(self, tfm, x, y, src_idx):
+        # return (x, y) if tfm is None else tfm(x, y)
+        return (x, y, src_idx) if tfm is None else tfm(x, y, src_idx) # (!) finally calling tfm functions. (!) src_idx      
 
     @abstractmethod
     def get_n(self):
@@ -305,16 +325,19 @@ class FilesDataset(BaseDataset):
 
 
         if len(arr.shape) == 3: arr = arr[None]
-        return self.transform.denorm(np.rollaxis(arr, 1, 4), y)  ##(!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
+        return self.transform.denorm(np.rollaxis(arr, 1, 4), y)  #(!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
 
 
 class FilesArrayDataset(FilesDataset):
-    def __init__(self, fnames, y, transform, path):
+    def __init__(self, fnames, y, transform, src_idx ,path): #(!) src_idx
         self.y = y
+        self.src_idx = src_idx #(!) src_idx
         assert (len(fnames) == len(y))
         super().__init__(fnames, transform, path)
 
     def get_y(self, i): return self.y[i]
+
+    def get_src_idx(self, i): return self.src_idx[i] #(!) src_idx get method
 
     def get_c(self):
         return self.y.shape[1] if len(self.y.shape) > 1 else 0
@@ -365,7 +388,7 @@ class ModelData():
     def __init__(self, path, trn_dl, val_dl, test_dl=None):
         self.path, self.trn_dl, self.val_dl, self.test_dl = path, trn_dl, val_dl, test_dl
 
-    @classmethod
+    @classmethod # (!!) Sultan, did you write this? Not used atm?
     def from_dls(cls, path, trn_dl, val_dl, test_dl=None):
         # trn_dl,val_dl = DataLoader(trn_dl),DataLoader(val_dl)
         # if test_dl: test_dl = DataLoader(test_dl)
@@ -436,13 +459,25 @@ class ImageData(ModelData):
     def get_ds(fn, trn, val, tfms, test=None, **kwargs):
 
         res = [
-            fn(trn[0], trn[1], tfms[0], **kwargs),  # train
-            fn(val[0], val[1], tfms[1], **kwargs),  # val
-            fn(trn[0], trn[1], tfms[1], **kwargs),  # fix
-            fn(val[0], val[1], tfms[0], **kwargs)  # aug
+            # fn(trn[0], trn[1], tfms[0], **kwargs),  # train
+            # fn(val[0], val[1], tfms[1], **kwargs),  # val
+            # fn(trn[0], trn[1], tfms[1], **kwargs),  # fix
+            # fn(val[0], val[1], tfms[0], **kwargs)  # aug
+            
+            # (!) src_idx lives in trn/val[3], see 'folder_source'
+            # fn(trn[0], trn[1], tfms[0], trn[3], **kwargs),  # train
+            # fn(trn[0], trn[1], tfms[1], trn[3], **kwargs),  # fix
+            # fn(val[0], val[1], tfms[1], val[3], **kwargs),  # val
+            # fn(val[0], val[1], tfms[0], val[3], **kwargs)  # aug
+
+            fn(trn[0], trn[1], tfms[0], trn[3], **kwargs),  # train
+            fn(val[0], val[1], tfms[1], val[3], **kwargs),  # val
+            fn(trn[0], trn[1], tfms[1], trn[3], **kwargs),  # fix
+            fn(val[0], val[1], tfms[0], val[3], **kwargs)  # aug
+            
         ]
 
-        res[0].idx_to_class = trn[2]
+        res[0].idx_to_class = trn[2] #(!) What does this do?!
 
         if test is not None:
             if isinstance(test, tuple):
@@ -482,7 +517,6 @@ class ImageClassifierData(ImageData):
         return cls(path, datasets, bs, num_workers, classes=classes)
 
     @classmethod
-    
     def prepare_from_path(cls, path, bs=64, trn_name='train', val_name='valid', test_name=None, test_with_labels=False,
                           num_workers=8,balance=False):
         """ Read in images and their labels given as sub-folder names
@@ -499,7 +533,7 @@ class ImageClassifierData(ImageData):
         Returns:
             ImageClassifierData
         """
-        lbl2index = {}  # gets populated in the folder  source calls
+        lbl2index = {}  # gets populated in the folder_source calls
         test_lbl2index = {}
 
         trn, val = [folder_source(path, o, lbl2index) for o in (trn_name, val_name)]
