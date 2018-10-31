@@ -315,7 +315,7 @@ class FilesDataset(BaseDataset):
                            new_path)  # (!) THIS calls resize_image which uses mode=RGB -> Issues
         return self.__class__(self.fnames, self.y, self.transform, dest)
 
-    def denorm(self, arr, y=None):
+    def denorm(self, arr, y=None, src_idx=None): # (!) src_idx
         """Reverse the normalization done to a batch of images.
 
         Arguments:
@@ -325,8 +325,8 @@ class FilesDataset(BaseDataset):
 
 
         if len(arr.shape) == 3: arr = arr[None]
-        return self.transform.denorm(np.rollaxis(arr, 1, 4), y)  #(!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
-
+        return self.transform.denorm(np.rollaxis(arr, 1, 4), y, src_idx)    # (!) Get's called in plt.imshow.(data.trn_ds.denorm(x)[0]) which delegates to tranforms.denormalize through tfms_from_stats. Makes indexing confusing!
+                                                                            # (!) src_idx
 
 class FilesArrayDataset(FilesDataset):
     def __init__(self, fnames, y, transform, src_idx ,path): #(!) src_idx
@@ -480,17 +480,35 @@ class ImageData(ModelData):
         res[0].idx_to_class = trn[2] #(!) What does this do?!
 
         if test is not None:
+            # if isinstance(test, tuple):
+            #     test_lbls = test[1]
+            #     test = test[0]
+            #     test_src_idx = test[3]
+            #     # print('Tuple')
+            # else:
+            #     test_lbls = np.zeros((len(test), 1))
+            #     # print('Not_tuple')
+
+            # res += [
+            #     fn(test, test_lbls, tfms[2], test_src_idx, **kwargs),  # test (!) 1 -> 2
+            #     fn(test, test_lbls, tfms[0], test_src_idx, **kwargs)  # test_aug
+            # ]
+            
             if isinstance(test, tuple):
-                test_lbls = test[1]
-                test = test[0]
+                res += [
+                    fn(test[0], test[1], tfms[2], test[3], **kwargs),  # test (!) 1 -> 2
+                    fn(test[0], test[1], tfms[0], test[3], **kwargs)  # test_aug
+                ]
             else:
                 test_lbls = np.zeros((len(test), 1))
-            res += [
-                fn(test, test_lbls, tfms[2], **kwargs),  # test (!) 1 -> 2
-                fn(test, test_lbls, tfms[0], **kwargs)  # test_aug
-            ]
+                res += [
+                    fn(test, test_lbls, tfms[2], **kwargs),  # test (!) 1 -> 2
+                    fn(test, test_lbls, tfms[0], **kwargs)  # test_aug
+                ]
+
         else:
             res += [None, None]
+            # print('Test is None')
         return res
 
 
@@ -518,7 +536,7 @@ class ImageClassifierData(ImageData):
 
     @classmethod
     def prepare_from_path(cls, path, bs=64, trn_name='train', val_name='valid', test_name=None, test_with_labels=False,
-                          num_workers=8,balance=False):
+                          num_workers=8, balance=False):
         """ Read in images and their labels given as sub-folder names
 
         Arguments:

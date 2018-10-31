@@ -28,13 +28,13 @@ class Statistics:
         return classes
 
     @staticmethod
-    def per_class(zipped: zip, norm_value=65536, save_name='') -> dict:
+    def per_class(zipped: zip, norm_value=65536, save_name='', inspect = False) -> dict:
         stats = {}
 
         for t in zipped:
+            class_images = [] # bug fixed
             for class_dir in t: # t is a tuple
                 class_name = class_dir.name
-                class_images = []
                 # read from each dir and append to the images
                 for file in class_dir.iterdir():
                     image = tiff.imread(str(file))
@@ -42,8 +42,12 @@ class Statistics:
 
                 # print(f"working on: {class_name}")
                 print(f"working on: {class_dir}")
-                mean = np.mean(class_images, axis=(0, 2, 3)) / norm_value
-                stdev = np.std(class_images, axis=(0, 2, 3)) / norm_value
+                if inspect == False:    
+                    mean = np.mean(class_images, axis=(0, 2, 3)) / norm_value
+                    stdev = np.std(class_images, axis=(0, 2, 3)) / norm_value
+                else: 
+                    mean = np.mean(class_images, axis=(2, 3)) #/ norm_value
+                    stdev = np.std(class_images, axis=(2, 3)) #/ norm_value
 
                 stats[class_name] = (mean, stdev)
 

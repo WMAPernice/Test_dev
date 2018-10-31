@@ -180,7 +180,7 @@ class DenormalizeWithDict:
         return t(x), y
 
 
-class Denormalize:
+class Denormalize: # (!) currently broken because src_idx is not 
     """ De-normalizes an image, returning it to original format.
     """
     def __init__(self, stats):
@@ -192,9 +192,9 @@ class Denormalize:
             self.s=np.array(s, dtype=np.float32)
             self.d = None
 
-    def __call__(self, x, y=None): 
+    def __call__(self, x, y=None, src_idx=None): # (!) src_idx
         if self.d and y is not None:
-            m ,s = self.d[y]
+            m ,s = self.d[src_idx] # (!) src_idx
         else:
             m,s = self.m, self.s
         return x*s+m
@@ -222,6 +222,7 @@ class Normalize:
 
     def __call__(self, x, y=None, src_idx=None):
         if self.d and y is not None:
+            # print(src_idx, self.d[src_idx])
             m, s = self.d[src_idx]
             # print(f"source_index: {src_idx}")
             # print(f"class_index: {y}")
