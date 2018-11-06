@@ -144,6 +144,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
     tot_epochs = int(np.ceil(np.array(n_epochs).sum()))
     cnt_phases = np.array([ep * len(dat.trn_dl) for (ep, dat) in zip(n_epochs, data)]).cumsum()
     phase = 0
+
     for epoch in tnrange(tot_epochs, desc='Epoch'):
         # this procedure includes both test and train
         model_stepper.reset(True)
@@ -157,16 +158,18 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             val_iter = IterBatch(cur_data.val_dl)
 
         print_dist = PrintDistribution(len(metrics_data.classes))
-        # (!) START batch distribution adjustment
-        if adjust_class is not None:  # (!) batch distribution adjustment
-            # adjust class: (dict, bs)
-            #
-            # threshold is a list
-            weights = adjust_weights(cur_data.trn_dl, adjust_class[0])
-            cur_data.trn_dl.set_dynamic_sampler(weights)
-        else:
-            cur_data.trn_dl.reset_sampler()
+
+        # (!) START dynamic batch distribution adjustment
+        #  Current implmentation not ideal; if adjust_class is None, resetting sampler on each iteration,
+        #  potentially overwriting original settings in dataloader...
+        
+        if adjust_class is not None:
+            flx_weights = adjust_weights(cur_data.trn_dl, adjust_class)
+            cur_data.trn_dl.set_dynamic_sampler(flx_weights)
+        if adjust_class is None:
+            cur_data.trn_dl.reset_sampler() 
         # (!) END
+        
         for (*x, y) in t:
             print_dist(y)
 
@@ -469,7 +472,7 @@ def compute_weights_distribution(cm, data_loader): # (!)
     o = np.argmax(confused_with, axis=0)[0]
     c = confused_with[o][1]  # class that o get confused with most often
     print(f"original class: [{o}]; getting confused with: [{c}]")
-    # compute normal weights
+    # compute normal batch_weights
     ys = [pair[1] for pair in data_loader.dataset] # all ys
     weights = np.zeros(len(ys))
     labels = np.unique(ys)
@@ -479,7 +482,7 @@ def compute_weights_distribution(cm, data_loader): # (!)
     for idx, label in enumerate(labels):
         weights[ys == label] = probs[idx] / occurrences[idx]
 
-    # compute desired weights
+    # compute desired batch_weights
     ratio = 35
     other_classes = (100 - 2*ratio) / (len(labels) - 2)
     dist = [35 if idx in [o, c] else other_classes for idx in range(n)]

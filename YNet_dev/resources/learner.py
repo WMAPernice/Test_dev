@@ -100,14 +100,14 @@ class Learner():
 
     def save(self, name):
         path = self.get_model_path(name)
-        if os.path.isfile(path):
-            print('WARNING: there is already a saved model at this path'
-                  "\ninput an addition to the save path or leave blank to abort")
-            s = input("prompt: ")
-            if s:
-                path += s
-            else:
-                return
+        # if os.path.isfile(path):
+        #     print('WARNING: there is already a saved model at this path'
+        #           "\ninput an addition to the save path or leave blank to abort")
+        #     s = input("prompt: ")
+        #     if s:
+        #         path += s
+        #     else:
+        #         return
 
         save_model(self.model, path)
         if hasattr(self, 'swa_model'): save_model(self.swa_model, self.get_model_path(name)[:-3] + '-swa.h5')

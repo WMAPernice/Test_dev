@@ -29,7 +29,7 @@ class DataLoader(object):
         self.dataset, self.batch_size, self.num_workers = dataset, batch_size, num_workers
         self.pin_memory, self.drop_last, self.pre_pad = pin_memory, drop_last, pre_pad
         self.transpose, self.transpose_y, self.pad_idx, self.half = transpose, transpose_y, pad_idx, half
-
+        
         if batch_sampler is not None:
             if batch_size > 1 or shuffle or sampler is not None or drop_last:
                 raise ValueError('batch_sampler is mutually exclusive with '
@@ -53,12 +53,16 @@ class DataLoader(object):
         self.drop_last = drop_last  # (!)
         self.sampler = sampler
         self.batch_sampler = batch_sampler
+        self.weights = weights # (!) 
 
     def __len__(self):
         return len(self.batch_sampler)
 
-    def reset_sampler(self):
-        self.sampler = RandomSampler(self.dataset)
+    def reset_sampler(self): #(!) self.weights serves as proxy for whether original dataloader was defined with balance = True
+        if self.weights is not None:
+            self.sampler = WeightedRandomSampler(self.weights, len(self.weights))
+        else:
+            self.sampler = RandomSampler(self.dataset)
         self.batch_sampler = BatchSampler(self.sampler, self.batch_size, self.drop_last)
 
     def set_dynamic_sampler(self, weights, batch_size=None):  # (!)
