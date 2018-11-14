@@ -81,10 +81,10 @@ def read_dirs(path, folder):
     full_path = os.path.join(path, folder)
     for lbl in sorted(os.listdir(full_path)):
         if lbl not in ('.ipynb_checkpoints', '.DS_Store'):
-            all_lbls.append(lbl)
-            for fname in os.listdir(os.path.join(full_path, lbl)):
+            all_lbls.append(lbl) #should be the folder names
+            for fname in os.listdir(os.path.join(full_path, lbl)): #for each file in each folder 
                 if fname not in ('.DS_Store'):
-                    fnames.append(os.path.join(folder, lbl, fname))
+                    fnames.append(os.path.join(folder, lbl, fname)) #append the file names 
                     lbls.append(lbl)
     return fnames, lbls, all_lbls
 
