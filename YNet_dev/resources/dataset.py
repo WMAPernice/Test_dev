@@ -277,16 +277,12 @@ def open_image(fn):
         # if len(res.shape)==2: res = np.repeat(res[...,None],3,2)
         # return res
         try:
-            # im = cv2.imread(str(fn), flags).astype(np.float32)/255
-            # return cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-            # if im is None: raise OSError(f'File not recognized by io.imread: {fn}') 
-
             # (!) modified to accomodate .tif files and use skimage.external.tifffile.imread as channel-number agnostic importer.
             # (!) np.moveaxis used to ensure correct array shape.
 
             if str(fn).lower().endswith(('.tif', '.tiff', '.tifff')):
                 im = tifffile.imread(str(fn)).astype(np.float32) / 65535  # (!) for 16-bit images
-                im = np.moveaxis(im, 0, -1)
+                im = np.moveaxis(im, 0, -1) # converting (c,w,h) to (w,h,c)
             else:
                 im = cv2.imread(str(fn), flags).astype(np.float32) / 255
                 im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
@@ -337,7 +333,7 @@ class FilesArrayDataset(FilesDataset):
 
     def get_y(self, i): return self.y[i]
 
-    def get_src_idx(self, i): return self.src_idx[i] #(!) src_idx get method
+    def get_src_idx(self, i): return self.src_idx[i] if self.src_idx is not None else None #(!) src_idx get method
 
     def get_c(self):
         return self.y.shape[1] if len(self.y.shape) > 1 else 0
@@ -357,10 +353,13 @@ class FilesIndexArrayRegressionDataset(FilesArrayDataset):
 
 
 class ArraysDataset(BaseDataset):
-    def __init__(self, x, y, transform):
+    def __init__(self, x, y, transform, src_idx):
         self.x, self.y = x, y
+        self.src_idx = src_idx #(!) src_idx
         assert (len(x) == len(y))
         super().__init__(transform)
+
+    def get_src_idx(self, i): return self.src_idx[i] if self.src_idx is not None else None #(!) src_idx get method
 
     def get_x(self, i): return self.x[i]
 
@@ -458,26 +457,24 @@ class ImageData(ModelData):
     @staticmethod
     def get_ds(fn, trn, val, tfms, test=None, **kwargs):
 
-        res = [
-            # fn(trn[0], trn[1], tfms[0], **kwargs),  # train
-            # fn(val[0], val[1], tfms[1], **kwargs),  # val
-            # fn(trn[0], trn[1], tfms[1], **kwargs),  # fix
-            # fn(val[0], val[1], tfms[0], **kwargs)  # aug
-            
-            # (!) src_idx lives in trn/val[3], see 'folder_source'
-            # fn(trn[0], trn[1], tfms[0], trn[3], **kwargs),  # train
-            # fn(trn[0], trn[1], tfms[1], trn[3], **kwargs),  # fix
-            # fn(val[0], val[1], tfms[1], val[3], **kwargs),  # val
-            # fn(val[0], val[1], tfms[0], val[3], **kwargs)  # aug
+        
+        if len(trn) == 5:
+            res = [           
+                fn(trn[0], trn[1], tfms[0], trn[3], **kwargs),  # train
+                fn(val[0], val[1], tfms[1], val[3], **kwargs),  # val
+                fn(trn[0], trn[1], tfms[1], trn[3], **kwargs),  # fix
+                fn(val[0], val[1], tfms[0], val[3], **kwargs)  # aug
+            ]
 
-            fn(trn[0], trn[1], tfms[0], trn[3], **kwargs),  # train
-            fn(val[0], val[1], tfms[1], val[3], **kwargs),  # val
-            fn(trn[0], trn[1], tfms[1], trn[3], **kwargs),  # fix
-            fn(val[0], val[1], tfms[0], val[3], **kwargs)  # aug
-            
-        ]
+        else:
+            res = [
+                fn(trn[0], trn[1], tfms[0], None, **kwargs),  # train
+                fn(val[0], val[1], tfms[1], None, **kwargs),  # val
+                fn(trn[0], trn[1], tfms[1], None, **kwargs),  # fix
+                fn(val[0], val[1], tfms[0], None, **kwargs)  # aug
+            ]
 
-        res[0].idx_to_class = trn[2] #(!) What does this do?!
+        # res[0].idx_to_class = trn[2] #(!) What does this do?!
 
         if test is not None:
             # if isinstance(test, tuple):

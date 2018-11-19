@@ -222,13 +222,15 @@ class Normalize:
 
     def __call__(self, x, y=None, src_idx=None):
         if self.d and y is not None:
+            if src_idx is not None:
             # print(src_idx, self.d[src_idx])
-            m, s = self.d[src_idx]
+                m, s = self.d[src_idx]
+            else:
+                m, s = self.d[y]
             # print(f"source_index: {src_idx}")
             # print(f"class_index: {y}")
         else:
             m,s = self.m, self.s
-
         x = (x-m) / s
 
         if self.tfm_y==TfmType.PIXEL and y is not None: y = (y-self.m)/self.s
@@ -670,7 +672,7 @@ class RandomBlur(Transform):
         self.store.kernel = (kernel_size, kernel_size)
 
     def do_transform(self, x, is_y):
-        return cv2.GaussianBlur(src=x, ksize=self.store.kernel, sigmaX=0) if self.apply_transform else x
+        return cv2.GaussianBlur(src=x, ksize=self.store.kernel, sigmaX=0) if self.store.apply_transform else x # (!) bugfix, was if self.apply_transform which = False
 
 
 class Cutout(Transform):

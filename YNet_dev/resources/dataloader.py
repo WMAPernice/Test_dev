@@ -85,6 +85,7 @@ class DataLoader(object):
 
     def np_collate(self, batch):
         b = batch[0]
+        # print(type(b))
         if isinstance(b, (np.ndarray, np.generic)):
             return self.jag_stack(batch)
         elif isinstance(b, (int, float)):

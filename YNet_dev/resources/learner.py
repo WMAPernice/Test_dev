@@ -381,13 +381,28 @@ class Learner():
         self.fit_gen(self.model, self.data, layer_opt, num_it // len(self.data.trn_dl) + 1, all_val=True, **kwargs)
         self.load('tmp')
 
-    def predict(self, is_test=False, use_swa=False):
-        dl = self.data.test_dl if is_test else self.data.val_dl
+    def predict(self, ds='val', use_swa=False):
+        if ds == 'test':
+            dl = self.data.test_dl
+        elif ds == 'trn':
+            dl = self.data.trn_dl
+        else:
+            dl = self.data.val_dl 
+        # dl = self.data.test_dl if is_test else self.data.val_dl
         m = self.swa_model if use_swa else self.model
         return predict(m, dl)
 
-    def predict_with_targs(self, is_test=False, use_swa=False):
-        dl = self.data.test_dl if is_test else self.data.val_dl
+    def predict_with_targs(self, ds='val', use_swa=False):
+        if ds == 'test':
+            dl = self.data.test_dl
+            print('test')
+        elif ds == 'trn':
+            dl = self.data.trn_dl
+            print('trn')
+        else:
+            dl = self.data.val_dl 
+            print('val')
+        # dl = self.data.test_dl if is_test else self.data.val_dl
         m = self.swa_model if use_swa else self.model
         return predict_with_targs(m, dl)
 

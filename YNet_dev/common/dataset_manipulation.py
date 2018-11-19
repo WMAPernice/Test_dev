@@ -59,8 +59,8 @@ def shuffle_zip(zips_path: str, output_path: str, ready_path: str, val=False):
 
 def split_images(temp_path, shuffle_data=True):
     if not isinstance(temp_path, Path): temp_path = Path(temp_path)
-    random.seed(1)  # reproducible randomness
-    ntest = 35 # per experiment per class
+    # random.seed(1)  # reproducible randomness
+    ntest = 70 # per experiment per class
 
     # get list of files in TempPath
     addrs = [addr for addr in temp_path.iterdir()]  # e.g. /mmr1/mmr1_WP_E1_S2_F1_I6_C10_A0.tifstack.tif
