@@ -395,13 +395,10 @@ class Learner():
     def predict_with_targs(self, ds='val', use_swa=False):
         if ds == 'test':
             dl = self.data.test_dl
-            print('test')
         elif ds == 'trn':
             dl = self.data.trn_dl
-            print('trn')
         else:
             dl = self.data.val_dl 
-            print('val')
         # dl = self.data.test_dl if is_test else self.data.val_dl
         m = self.swa_model if use_swa else self.model
         return predict_with_targs(m, dl)
