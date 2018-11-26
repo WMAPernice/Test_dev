@@ -16,3 +16,4 @@ results/
 model_checkpoints/
 pytorch_t/
 examples/
+transfer_work/
