@@ -180,7 +180,7 @@ class DenormalizeWithDict:
         return t(x), y
 
 
-class Denormalize():
+class Denormalize: # (!) currently broken because src_idx is not 
     """ De-normalizes an image, returning it to original format.
     """
     def __init__(self, stats):
@@ -192,35 +192,46 @@ class Denormalize():
             self.s=np.array(s, dtype=np.float32)
             self.d = None
 
-    def __call__(self, x, y=None): 
+    def __call__(self, x, y=None, src_idx=None): # (!) src_idx
         if self.d and y is not None:
-            m ,s = self.d[y]
+            m ,s = self.d[src_idx] # (!) src_idx
         else:
             m,s = self.m, self.s
         return x*s+m
 
-class Normalize():
-    """ Normalizes an image to zero mean and unit standard deviation, given the mean m and std s of the original image """
+class Normalize:
+    """ Normalizes an image to zero mean and unit standard deviation, 
+        given the mean m and std s of the original image.
+
+        (!) Stats can be list or dict containing different m,s values for specific image collections
+        (!) Normalizes images according to their true source folder, no class labels (y); 
+            utilizes src_idx instead of y (class labels) created in 'folder_source' 
+    
+    """
 
     def __init__(self, stats, tfm_y=TfmType.NO):
         if isinstance(stats, dict):
             self.d = stats
         else:
             m, s = stats
-            self.m=np.array(m, dtype=np.float32)
-            self.s=np.array(s, dtype=np.float32)
-            self.d = None  # (!) so we can check if it there
+            self.m = np.array(m, dtype=np.float32)
+            self.s = np.array(s, dtype=np.float32)
+            self.d = None  # (!) so we can check if it's there
 
         self.tfm_y=tfm_y
 
-    def __call__(self, x, y=None):
+    def __call__(self, x, y=None, src_idx=None):
         if self.d and y is not None:
-            m, s = self.d[y]
+            if src_idx is not None:
+            # print(src_idx, self.d[src_idx])
+                m, s = self.d[src_idx]
+            else:
+                m, s = self.d[y]
+            # print(f"source_index: {src_idx}")
+            # print(f"class_index: {y}")
         else:
-
             m,s = self.m, self.s
-            
-        x = (x-m)/s
+        x = (x-m) / s
 
         if self.tfm_y==TfmType.PIXEL and y is not None: y = (y-self.m)/self.s
         return x,y
@@ -511,8 +522,26 @@ class RandomRotate(CoordTransform):
                                         interpolation=cv2.INTER_NEAREST if is_y else cv2.INTER_AREA)
         return x
 
+class AddDimension(CoordTransform): # (!)
 
-class RandomDihedral(CoordTransform):
+    def set_state(self): pass
+
+    def do_transform(self, x, is_y):
+        size = x.shape[0]
+        dim = np.zeros((size, size, 1))
+        out = np.concatenate((x, dim), axis=2)
+        return out
+
+
+class ToCopyTensor(CoordTransform):
+    def set_state(self):pass
+    def do_transform(self, x, is_y):
+        out = torch.from_numpy(x.copy())
+        print("tocopytensor: ",type(out))
+        return out
+
+
+class RandomDihedral(CoordTransform):  # (!)
     """
     Rotates images by random multiples of 90 degrees and/or reflection.
     Please reference D8(dihedral group of order eight), the group of all symmetries of the square.
@@ -643,7 +672,7 @@ class RandomBlur(Transform):
         self.store.kernel = (kernel_size, kernel_size)
 
     def do_transform(self, x, is_y):
-        return cv2.GaussianBlur(src=x, ksize=self.store.kernel, sigmaX=0) if self.apply_transform else x
+        return cv2.GaussianBlur(src=x, ksize=self.store.kernel, sigmaX=0) if self.store.apply_transform else x # (!) bugfix, was if self.apply_transform which = False
 
 
 class Cutout(Transform):
@@ -694,12 +723,17 @@ class GoogleNetResize(CoordTransform):
                                 interpolation=interpolation)
 
 
-def compose(im, y, fns):
+def compose(im, y, src_idx, fns): # (!)
     """ apply a collection of transformation functions fns to images
+        (!) this calls e.g. 'normalize' with x and y inputs. 
     """
-    for fn in fns:
 
-        im, y = fn(im, y)
+    for fn in fns:
+        if 'Normalize' in str(fn):
+            # print(fn) # (!)
+            im, y = fn(im, y, src_idx)
+        else: im, y = fn(im, y)
+
     return im if y is None else (im, y)
 
 
@@ -728,7 +762,7 @@ class Transforms:
         self.tfms.append(ChannelOrder(tfm_y))
 
 
-    def __call__(self, im, y=None): return compose(im, y, self.tfms)
+    def __call__(self, im, y=None, src_idx=None): return compose(im, y, src_idx, self.tfms) #(!)
 
     def __repr__(self): return str(self.tfms)
 
@@ -815,7 +849,7 @@ def tfms_from_stats_dict(tfms_dict, sz, aug_tfms=None, max_zoom=None, pad=0, cro
                         tfm_y=tfm_y, sz_y=sz_y, scale=scale)
     trn_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=crop_type,
                         tfm_y=tfm_y, sz_y=sz_y, tfms=aug_tfms, max_zoom=max_zoom, pad_mode=pad_mode, scale=scale)
-    return trn_tfm, val_tfm
+    return trn_tfm, val_tfmval_tfm
 
 
 def tfms_from_stats(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,

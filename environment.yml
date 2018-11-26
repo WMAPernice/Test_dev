@@ -89,7 +89,7 @@ dependencies:
 - widgetsnbextension
 - xz
 - zeromq
-- pytorch==0.4 # Different from original env.; might need to manually upgrade your local env. 
+- pytorch<0.4
 - bcolz
 - prompt_toolkit
 - pytest

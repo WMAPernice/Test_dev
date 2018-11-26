@@ -99,7 +99,17 @@ class Learner():
         return os.path.join(self.models_path, name) + '.h5'
 
     def save(self, name):
-        save_model(self.model, self.get_model_path(name))
+        path = self.get_model_path(name)
+        # if os.path.isfile(path):
+        #     print('WARNING: there is already a saved model at this path'
+        #           "\ninput an addition to the save path or leave blank to abort")
+        #     s = input("prompt: ")
+        #     if s:
+        #         path += s
+        #     else:
+        #         return
+
+        save_model(self.model, path)
         if hasattr(self, 'swa_model'): save_model(self.swa_model, self.get_model_path(name)[:-3] + '-swa.h5')
 
     def load(self, name):
@@ -133,7 +143,7 @@ class Learner():
     def fit_gen(self, model, data, layer_opt, n_cycle, cycle_len=None, cycle_mult=1, cycle_save_name=None,
                 best_save_name=None,
                 use_clr=None, use_clr_beta=None, metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False,
-                wds_sched_mult=None, use_swa=False, swa_start=1, swa_eval_freq=5, **kwargs):
+                wds_sched_mult=None, use_swa=False, swa_start=1, swa_eval_freq=5, adjust_class=None, **kwargs):
 
         """Method does sget_layer_optome preparation before finally delegating to the 'fit' method for
         fitting the model. Namely, if cycle_len is defined, it adds a 'Cosine Annealing'
@@ -250,7 +260,7 @@ class Learner():
         return fit(model, data, n_epoch, layer_opt.opt, self.crit,
                    metrics=metrics, callbacks=callbacks, reg_fn=self.reg_fn, clip=self.clip, fp16=self.fp16,
                    swa_model=self.swa_model if use_swa else None, swa_start=swa_start,
-                   swa_eval_freq=swa_eval_freq, **kwargs)
+                   swa_eval_freq=swa_eval_freq, adjust_class=adjust_class, **kwargs)  # (!) adjust class
 
     def get_layer_groups(self):
         return self.models.get_layer_groups()
@@ -277,7 +287,7 @@ class Learner():
         """
         return LayerOptimizer(self.opt_fn, self.get_layer_groups(), lrs, wds)
 
-    def fit(self, lrs, n_cycle, wds=None, **kwargs):
+    def fit(self, lrs, n_cycle, wds=None, adjust_class=None, **kwargs):
 
         """Method gets an instance of LayerOptimizer and delegates to self.fit_gen(..)
 
@@ -304,7 +314,7 @@ class Learner():
         """
         self.sched = None
         layer_opt = self.get_layer_opt(lrs, wds)
-        return self.fit_gen(self.model, self.data, layer_opt, n_cycle, **kwargs)
+        return self.fit_gen(self.model, self.data, layer_opt, n_cycle, adjust_class=adjust_class,**kwargs)
 
     def warm_up(self, lr, wds=None):
         layer_opt = self.get_layer_opt(lr / 4, wds)
@@ -371,13 +381,25 @@ class Learner():
         self.fit_gen(self.model, self.data, layer_opt, num_it // len(self.data.trn_dl) + 1, all_val=True, **kwargs)
         self.load('tmp')
 
-    def predict(self, is_test=False, use_swa=False):
-        dl = self.data.test_dl if is_test else self.data.val_dl
+    def predict(self, ds='val', use_swa=False):
+        if ds == 'test':
+            dl = self.data.test_dl
+        elif ds == 'trn':
+            dl = self.data.trn_dl
+        else:
+            dl = self.data.val_dl 
+        # dl = self.data.test_dl if is_test else self.data.val_dl
         m = self.swa_model if use_swa else self.model
         return predict(m, dl)
 
-    def predict_with_targs(self, is_test=False, use_swa=False):
-        dl = self.data.test_dl if is_test else self.data.val_dl
+    def predict_with_targs(self, ds='val', use_swa=False):
+        if ds == 'test':
+            dl = self.data.test_dl
+        elif ds == 'trn':
+            dl = self.data.trn_dl
+        else:
+            dl = self.data.val_dl 
+        # dl = self.data.test_dl if is_test else self.data.val_dl
         m = self.swa_model if use_swa else self.model
         return predict_with_targs(m, dl)
 
@@ -411,6 +433,8 @@ class Learner():
         preds1, targs = predict_with_targs(self.model, dl1)
         preds1 = [preds1] * math.ceil(n_aug / 4)
         preds2 = [predict_with_targs(self.model, dl2)[0] for i in tqdm(range(n_aug), leave=False)]
+        # print(preds1[0].shape)
+        # print(preds2[0].shape)
         return np.stack(preds1 + preds2), targs
 
     def fit_opt_sched(self, phases, cycle_save_name=None, best_save_name=None, stop_div=False, data_list=None,

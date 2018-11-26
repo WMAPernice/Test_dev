@@ -12,4 +12,7 @@ __pycache__/
 tensorboardx/
 .ipynb_checkpoints/
 datasets/
-
+results/
+model_checkpoints/
+pytorch_t/
+examples/

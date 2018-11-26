@@ -2,12 +2,13 @@ from .imports import *
 from .torch_imports import *
 from .core import *
 from .layer_optimizer import *
+from sklearn.metrics import confusion_matrix, f1_score
 from .swa import *
 from .fp16 import *
-
+from typing import Generator
 
 IS_TORCH_04 = LooseVersion(torch.__version__) >= LooseVersion('0.4')
-
+GLOBAL_STEP = 0
 
 def cut_model(m, cut):
     return list(m.children())[:cut] if cut else [m]
@@ -104,7 +105,7 @@ def set_train_mode(m):
 
 
 def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=Stepper,
-        swa_model=None, swa_start=None, swa_eval_freq=None, **kwargs):
+        swa_model=None, swa_start=None, swa_eval_freq=None, adjust_class=None, **kwargs): # (!) added threshold parameter
     """ Fits a model
 
     Arguments:
@@ -116,6 +117,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
        n_epochs(int or list): number of epochs (or list of number of epochs)
        crit: loss function to optimize. Example: F.cross_entropy
     """
+    metrics_data = data
 
     all_val = kwargs.pop('all_val') if 'all_val' in kwargs else False
     get_ep_vals = kwargs.pop('get_ep_vals') if 'get_ep_vals' in kwargs else False
@@ -142,6 +144,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
     tot_epochs = int(np.ceil(np.array(n_epochs).sum()))
     cnt_phases = np.array([ep * len(dat.trn_dl) for (ep, dat) in zip(n_epochs, data)]).cumsum()
     phase = 0
+
     for epoch in tnrange(tot_epochs, desc='Epoch'):
         # this procedure includes both test and train
         model_stepper.reset(True)
@@ -149,11 +152,27 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         if hasattr(cur_data, 'trn_sampler'): cur_data.trn_sampler.set_epoch(epoch)
         if hasattr(cur_data, 'val_sampler'): cur_data.val_sampler.set_epoch(epoch)
         num_batch = len(cur_data.trn_dl)
-        t = tqdm(iter(cur_data.trn_dl), leave=False, total=num_batch)
+
+        t = tqdm(iter(cur_data.trn_dl), leave=False, total=num_batch) # essentially an equivalent for (for batch,y in data)
         if all_val:
             val_iter = IterBatch(cur_data.val_dl)
 
+        print_dist = PrintDistribution(len(metrics_data.classes))
+
+        # (!) START dynamic batch distribution adjustment
+        #  Current implmentation not ideal; if adjust_class is None, resetting sampler on each iteration,
+        #  potentially overwriting original settings in dataloader...
+        
+        if adjust_class is not None:
+            flx_weights = adjust_weights(cur_data.trn_dl, adjust_class)
+            cur_data.trn_dl.set_dynamic_sampler(flx_weights)
+        if adjust_class is None:
+            cur_data.trn_dl.reset_sampler() 
+        # (!) END
+        
         for (*x, y) in t:
+            print_dist(y)
+
             batch_num += 1
             for cb in callbacks: cb.on_batch_begin()
             loss = model_stepper.step(V(x), V(y), epoch)
@@ -179,9 +198,12 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                 if cur_data != data[phase]:
                     t.close()
                     break
-
-
-        per_class_accuracies(cur_data.val_dl, model)
+        # (!) START logging
+        global GLOBAL_STEP
+        print(f"EPOCH {epoch} {'-' * 40} STEP {GLOBAL_STEP}")
+        print_dist.describe()
+        per_class_accuracies(metrics_data, model, GLOBAL_STEP)
+        # (!) END
 
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
@@ -197,7 +219,15 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             if epoch == 0:
                 print(layout.format(*names))
             print_stats(epoch, [debias_loss] + vals)
+
+            if hasattr(model,'writer'):  # (!) added a tensorboard logger
+                tensorboard_log(model, GLOBAL_STEP, [debias_loss] + vals)
+                # (!) added f1 score logging to tensorboard
+                log_f1_score(metrics_data.val_dl, model, GLOBAL_STEP)
+
             ep_vals = append_stats(ep_vals, epoch, [debias_loss] + vals)
+
+        GLOBAL_STEP += 1  # (!)
 
         if stop:
             break
@@ -333,16 +363,35 @@ def model_summary(m, input_size):
 
         x = [to_gpu(Variable(torch.rand(2,*in_size))) for in_size in input_size] #(!) modified first arg 3 -> 2
     else: x = [to_gpu(Variable(torch.rand(2,*input_size)))]
-    m(*x) #(!) unsure what this is doing, used to not be stored, just executed in orginal code. 
+    m(*x) #(!) running model to generate hook outputs
 
     for h in hooks:
         h.remove()
     return summary
 
 
-def per_class_accuracies(data_loader, model):  # (!) may not work for non classification problems
+def per_class_accuracies(data, model, epoch:int):  # (!) may not work for non classification problems
 
     class_correct, class_total = {}, {}
+    data_loader = data.val_dl
+    log_predictions, targets = predict_with_targs(model, data_loader)
+    predictions = np.exp(log_predictions)
+    choices = np.argmax(predictions, axis=1)
+    for choice, truth in zip(choices, targets):
+        if truth not in class_total:
+            class_correct[truth] = 0
+            class_total[truth] = 0
+        class_correct[truth] += int(choice == truth)
+        class_total[truth] += 1
+
+    accuracy = {data.classes[label]: 100. * correct / class_total[label] for label, correct in class_correct.items()}
+
+    if hasattr(model,'writer'):
+        model.writer.add_scalars("class_accuracies", accuracy, epoch)
+    for label, accuracy in accuracy.items():
+        print(f"[{label}]: {accuracy:4.4}%")
+
+def compute_predictions(model, data_loader) -> Generator: # (!) util
     data_iter = iter(data_loader)
 
     for x, y in data_iter:
@@ -350,20 +399,128 @@ def per_class_accuracies(data_loader, model):  # (!) may not work for non classi
         x = x if IS_TORCH_04 else V(x)
 
         preds = model(x).data.cpu().numpy() # this is a batch
-        choice = np.argmax(preds, axis=1)
+        choices = np.argmax(preds, axis=1)
 
         y = y.cpu().numpy()
-        is_correct = (choice == y)
+        is_correct = (choices == y)
+        yield is_correct, choices, x, y # numpy arrays
 
-        for idx, label in enumerate(y):
-            if label not in class_correct:
-                class_correct[label] = 0
-            if label not in class_total:
-                class_total[label] = 0
+def tensorboard_log(model, epoch, metrics): # (!) tailored for our classification model
+    """
 
-            class_correct[label] += is_correct[idx]
-            class_total[label] += 1
+    :param model:
+    :param epoch:
+    :param metrics: [0] train_loss [1] valid loss [2] accuracy
+    :return:
+    """
+    model.writer.add_scalar("train loss", metrics[0], epoch)
+    model.writer.add_scalar("validation loss", metrics[1], epoch)
+    model.writer.add_scalar("accuracy", metrics[2], epoch)
 
-    for label, total in class_total.items():
-        accuracy = 100 * class_correct[label]/total
-        print(f"[{label}]: {accuracy:4.4}%")
+
+def compute_cm(model, data_loader):
+    # (!) should I calculate a mean
+    all_choices, all_ys = [], []
+    for is_correct, choices, x, y in compute_predictions(model, data_loader):
+        all_choices.extend(choices)
+        all_ys.extend(y)
+
+    return confusion_matrix(all_choices, all_ys)
+
+
+def adjust_weights(data_loader, class_: dict):
+    """
+    :param data_loader:
+    :param class_: dict that represents class ratios in the coming batches {0:50, 1:45}
+    :return: float array
+    """
+    ys = [pair[1] for pair in data_loader.dataset]  # all ys
+    weights = np.zeros(len(ys))
+    labels = np.unique(ys)
+    occurrences = np.bincount(ys)
+    print(occurrences)
+
+    # compute desired weights
+    assert class_ != {}
+    total = sum(value for _, value in class_.items())
+    assert total <= 100
+    other_classes = (100 - total) / (len(labels) - len(class_))
+    desired = [class_[label] if label in class_ else other_classes for label in labels]
+
+    for idx, desired_weight in zip(range(len(labels)), desired):
+        correction = desired_weight / occurrences[idx]
+        weights[ys == labels[idx]] += correction
+
+    return weights
+
+
+def compute_weights_distribution(cm, data_loader): # (!)
+    # determine which classes are often confused with each other
+    if not isinstance(cm, np.ndarray): cm = np.array(cm)
+    n = cm.shape[0]
+    confused_with = [0 for _ in range(n)]
+    for i in range(n):
+        row = [(val, idx) for idx, val in enumerate(cm[i])]
+        row.sort(key=lambda x: x[0],reverse=True)
+        if row[0][1] == i:
+            confused_with[i] = row[1]
+        else:
+            confused_with[i] = row[0]
+
+    print(confused_with)
+
+    o = np.argmax(confused_with, axis=0)[0]
+    c = confused_with[o][1]  # class that o get confused with most often
+    print(f"original class: [{o}]; getting confused with: [{c}]")
+    # compute normal batch_weights
+    ys = [pair[1] for pair in data_loader.dataset] # all ys
+    weights = np.zeros(len(ys))
+    labels = np.unique(ys)
+    occurrences = np.bincount(ys)
+    probs = [100 * count/sum(occurrences) for count in occurrences]
+
+    for idx, label in enumerate(labels):
+        weights[ys == label] = probs[idx] / occurrences[idx]
+
+    # compute desired batch_weights
+    ratio = 35
+    other_classes = (100 - 2*ratio) / (len(labels) - 2)
+    dist = [35 if idx in [o, c] else other_classes for idx in range(n)]
+
+    for idx, desired_weight, current_weight in zip(range(n), dist, probs):
+        delta = desired_weight - current_weight
+        correction = delta / occurrences[idx]
+        weights[ys == labels[idx]] += correction
+
+    return weights
+
+
+class PrintDistribution:
+    def __init__(self,num_classes):
+        self.ps = []
+        self.num_classes = num_classes
+
+    def __call__(self, y):
+        y = y.cpu().numpy().copy()  # gonna eat up a lot of memory
+        occurences = np.bincount(y, minlength=self.num_classes)
+
+        percentages = np.array([int(100 * count / sum(occurences)) for count in occurences])
+        self.ps.append(percentages)
+
+    def describe(self):
+        self.ps = np.stack(self.ps)
+        mean = np.mean(self.ps, axis=0)
+        stdev = np.std(self.ps, axis=0)
+        print(f"mean: {mean}\nstdev: {stdev}\n")
+
+
+def log_f1_score(data_loader, model, epoch):
+    log_predictions, targets = predict_with_targs(model, data_loader)
+    predictions = np.exp(log_predictions)
+    choices = np.argmax(predictions, axis=1)
+    wscore = f1_score(targets, choices, average='weighted')
+    model.writer.add_scalar("f1_weighted_score", wscore, epoch)
+    print(f"f1 weighted average score: [{wscore:4.4}]")
+    per_class_scores = f1_score(targets, choices, average=None)
+    scores_dict = {str(label):value for label, value in enumerate(per_class_scores)}
+    model.writer.add_scalars('f1_scores_per_class', scores_dict, epoch)
