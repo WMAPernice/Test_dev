@@ -195,6 +195,7 @@ class BaseDataset(Dataset):
         self.n = self.get_n()
         self.c = self.get_c()
         self.sz = self.get_sz()
+        self.ch = self.get_ch() # (!) get channels
 
     def get1item(self, idx):
         # x, y = self.get_x(idx), self.get_y(idx)
@@ -231,6 +232,11 @@ class BaseDataset(Dataset):
 
     @abstractmethod
     def get_sz(self):
+        """Return maximum size of an image in a dataset."""
+        raise NotImplementedError
+
+    @abstractmethod # (!) get channels
+    def get_ch(self):
         """Return maximum size of an image in a dataset."""
         raise NotImplementedError
 
@@ -297,6 +303,9 @@ class FilesDataset(BaseDataset):
 
     def get_sz(self):
         return self.transform.sz
+
+    def get_ch(self): # (!) get channels
+        return self.transform.ch
 
     def get_x(self, i):
         return open_image(os.path.join(self.path, self.fnames[i]))
@@ -367,6 +376,7 @@ class ArraysDataset(BaseDataset):
 
     def get_sz(self): return self.x.shape[1]
 
+    def get_ch(sef): return self.x.shape[0] #(!) actually unsure of shape here...
 
 class ArraysIndexDataset(ArraysDataset):
     def get_c(self): return int(self.y.max()) + 1
@@ -436,6 +446,10 @@ class ImageData(ModelData):
     @property
     def c(self):
         return self.trn_ds.c
+
+    @property # (!) get channels
+    def ch(self):
+        return self.trn_ds.ch
 
     def resized(self, dl, targ, new_path):
         return dl.dataset.resize_imgs(targ, new_path) if dl else None

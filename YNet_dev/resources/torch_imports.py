@@ -19,6 +19,9 @@ from .models.inceptionv4 import inceptionv4
 from .models.nasnet import nasnetalarge
 from .models.fa_resnet import *
 
+# resnet_models with dynamic input channels
+from .models.resnet_chanflex import resnet18_c, resnet34_c, resnet50_c, resnet101_c, resnet152_c #(!)
+
 import warnings
 warnings.filterwarnings('ignore', message='Implicit dimension choice', category=UserWarning)
 

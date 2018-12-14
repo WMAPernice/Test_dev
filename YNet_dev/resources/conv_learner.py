@@ -9,6 +9,7 @@ model_meta = {
     resnext50: [8, 6], resnext101: [8, 6], resnext101_64: [8, 6],
     wrn: [8, 6], inceptionresnet_2: [-2, 9], inception_4: [-1, 9],
     dn121: [0, 7], dn161: [0, 7], dn169: [0, 7], dn201: [0, 7],
+    resnet18_c: [8, 6], resnet34_c: [8, 6], resnet50_c: [8, 6], resnet101_c: [8, 6], resnet152_c: [8, 6],
 }
 model_features = {inception_4: 3072, dn121: 2048, dn161: 4416, }  # nasnetalarge: 4032*2}
 
@@ -29,8 +30,8 @@ class ConvnetBuilder():
                       that is mentioned on Argument 'f' 
     """
 
-    def __init__(self, f, c, is_multi, is_reg, ps=None, xtra_fc=None, xtra_cut=0, custom_head=None, pretrained=True):
-        self.f, self.c, self.is_multi, self.is_reg, self.xtra_cut = f, c, is_multi, is_reg, xtra_cut
+    def __init__(self, f, ch, c, is_multi, is_reg, ps=None, xtra_fc=None, xtra_cut=0, custom_head=None, pretrained=True):
+        self.f, self.ch, self.c, self.is_multi, self.is_reg, self.xtra_cut = f, ch, c, is_multi, is_reg, xtra_cut
         if xtra_fc is None: xtra_fc = [512]
         if ps is None: ps = [0.25] * len(xtra_fc) + [0.5]
         self.ps, self.xtra_fc = ps, xtra_fc
@@ -40,7 +41,7 @@ class ConvnetBuilder():
         else:
             cut, self.lr_cut = 0, 0
         cut -= xtra_cut
-        layers = cut_model(f(pretrained), cut)
+        layers = cut_model(f(pretrained,ch), cut)
         self.nf = model_features[f] if f in model_features else (num_features(layers) * 2)
         if not custom_head: layers += [AdaptiveConcatPool2d(), Flatten()]
         self.top_model = nn.Sequential(*layers)
@@ -116,7 +117,7 @@ class ConvLearner(Learner):
     @classmethod
     def pretrained(cls, f, data, ps=None, xtra_fc=None, xtra_cut=0, custom_head=None, precompute=False,
                    pretrained=True, **kwargs):
-        models = ConvnetBuilder(f, data.c, data.is_multi, data.is_reg,
+        models = ConvnetBuilder(f, data.ch, data.c, data.is_multi, data.is_reg, 
                                 ps=ps, xtra_fc=xtra_fc, xtra_cut=xtra_cut, custom_head=custom_head,
                                 pretrained=pretrained)
         return cls(data, models, precompute, **kwargs)

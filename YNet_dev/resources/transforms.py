@@ -204,12 +204,12 @@ class Normalize:
         given the mean m and std s of the original image.
 
         (!) Stats can be list or dict containing different m,s values for specific image collections
-        (!) Normalizes images according to their true source folder, no class labels (y); 
+        (!) Normalizes images according to their true source folder, not class labels (y); 
             utilizes src_idx instead of y (class labels) created in 'folder_source' 
     
     """
 
-    def __init__(self, stats, tfm_y=TfmType.NO):
+    def __init__(self, stats, IntNorm=False, tfm_y=TfmType.NO):
         if isinstance(stats, dict):
             self.d = stats
         else:
@@ -219,19 +219,25 @@ class Normalize:
             self.d = None  # (!) so we can check if it's there
 
         self.tfm_y=tfm_y
+        self.IntNorm=IntNorm
 
     def __call__(self, x, y=None, src_idx=None):
-        if self.d and y is not None:
-            if src_idx is not None:
-            # print(src_idx, self.d[src_idx])
-                m, s = self.d[src_idx]
-            else:
-                m, s = self.d[y]
-            # print(f"source_index: {src_idx}")
-            # print(f"class_index: {y}")
+        
+        if self.IntNorm:
+            m = np.array(np.mean(x, axis=(0,1)), dtype=np.float32)
+            s = np.array(np.std(x, axis=(0,1)), dtype=np.float32)
+            # print('IntNorm')
         else:
-            m,s = self.m, self.s
+            if self.d and y is not None:
+                if src_idx is not None:
+                    m, s = self.d[src_idx]
+                else:
+                    m, s = self.d[y]
+            else:
+                m,s = self.m, self.s
+
         x = (x-m) / s
+        # print(np.std(x, axis=(0,1)))
 
         if self.tfm_y==TfmType.PIXEL and y is not None: y = (y-self.m)/self.s
         return x,y
@@ -246,7 +252,7 @@ class ChannelOrder():
     def __init__(self, tfm_y=TfmType.NO):
         self.tfm_y = tfm_y
 
-    def __call__(self, x, y):
+    def __call__(self, x, y, src_idx):
         x = np.rollaxis(x, 2)
         # if isinstance(y,np.ndarray) and (len(y.shape)==3):
         if self.tfm_y == TfmType.PIXEL:
@@ -306,21 +312,22 @@ class Transform():
 
     def set_state(self): pass
 
-    def __call__(self, x, y):
+    def __call__(self, x, y, src_idx, *args, **kwargs):
         self.set_state()
-        x, y = ((self.transform(x), y) if self.tfm_y == TfmType.NO
-                else self.transform(x, y) if self.tfm_y in (TfmType.PIXEL, TfmType.CLASS)
-        else self.transform_coord(x, y))
+        
+        x, y = ((self.transform(x, src_idx=src_idx), y) if self.tfm_y == TfmType.NO
+                else self.transform(x, y, src_idx=src_idx) if self.tfm_y in (TfmType.PIXEL, TfmType.CLASS)
+        else self.transform_coord(x, y, src_idx=src_idx))
         return x, y
 
-    def transform_coord(self, x, y): return self.transform(x), y
+    def transform_coord(self, x, y, src_idx=None, *args, **kwargs): return self.transform(x), y
 
-    def transform(self, x, y=None):
-        x = self.do_transform(x, False)
+    def transform(self, x, y=None, src_idx=None, *args, **kwargs):
+        x = self.do_transform(x, False, src_idx)
         return (x, self.do_transform(y, True)) if y is not None else x
 
     @abstractmethod
-    def do_transform(self, x, is_y): raise NotImplementedError
+    def do_transform(self, x, is_y, src_idx=None, *args, **kwargs): raise NotImplementedError
 
 
 class CoordTransform(Transform):
@@ -336,13 +343,13 @@ class CoordTransform(Transform):
 
     def map_y(self, y0, x):
         y = CoordTransform.make_square(y0, x)
-        y_tr = self.do_transform(y, True)
+        y_tr = self.do_transform(y, True,*args, **kwargs)
         return to_bb(y_tr)
 
     def transform_coord(self, x, ys):
         yp = partition(ys, 4)
         y2 = [self.map_y(y, x) for y in yp]
-        x = self.do_transform(x, False)
+        x = self.do_transform(x, False,*args, **kwargs)
         return x, np.concatenate(y2)
 
 
@@ -362,7 +369,7 @@ class AddPadding(CoordTransform):
         super().__init__(tfm_y)
         self.pad, self.mode = pad, mode
 
-    def do_transform(self, im, is_y):
+    def do_transform(self, im, is_y,*args, **kwargs):
         return cv2.copyMakeBorder(im, self.pad, self.pad, self.pad, self.pad, self.mode)
 
 
@@ -382,7 +389,7 @@ class CenterCrop(CoordTransform):
         super().__init__(tfm_y)
         self.min_sz, self.sz_y = sz, sz_y
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         return center_crop(x, self.sz_y if is_y else self.min_sz)
 
 
@@ -406,7 +413,7 @@ class RandomCrop(CoordTransform):
         self.store.rand_r = random.uniform(0, 1)
         self.store.rand_c = random.uniform(0, 1)
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         r, c, *_ = x.shape
         sz = self.sz_y if is_y else self.targ_sz
         start_r = np.floor(self.store.rand_r * (r - sz)).astype(int)
@@ -428,7 +435,7 @@ class NoCrop(CoordTransform):
         super().__init__(tfm_y)
         self.sz, self.sz_y = sz, sz_y
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         if is_y:
             return no_crop(x, self.sz_y, cv2.INTER_AREA if self.tfm_y == TfmType.PIXEL else cv2.INTER_NEAREST)
         else:
@@ -449,7 +456,7 @@ class Scale(CoordTransform):
         super().__init__(tfm_y)
         self.sz, self.sz_y = sz, sz_y
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         if is_y:
             return scale_min(x, self.sz_y, cv2.INTER_AREA if self.tfm_y == TfmType.PIXEL else cv2.INTER_NEAREST)
         else:
@@ -484,7 +491,7 @@ class RandomScale(CoordTransform):
         self.store.new_sz = int(self.store.mult * self.sz)
         if self.sz_y is not None: self.store.new_sz_y = int(self.store.mult * self.sz_y)
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         if is_y:
             return scale_min(x, self.store.new_sz_y,
                              cv2.INTER_AREA if self.tfm_y == TfmType.PIXEL else cv2.INTER_NEAREST)
@@ -516,7 +523,7 @@ class RandomRotate(CoordTransform):
         self.store.rdeg = rand0(self.deg)
         self.store.rp = random.random() < self.p
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         if self.store.rp: x = rotate_cv(x, self.store.rdeg,
                                         mode=self.modes[1] if is_y else self.modes[0],
                                         interpolation=cv2.INTER_NEAREST if is_y else cv2.INTER_AREA)
@@ -551,7 +558,7 @@ class RandomDihedral(CoordTransform):  # (!)
         self.store.rot_times = random.randint(0, 3)
         self.store.do_flip = random.random() < 0.5
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         x = np.rot90(x, self.store.rot_times)
         return np.fliplr(x).copy() if self.store.do_flip else x
 
@@ -563,7 +570,7 @@ class RandomFlip(CoordTransform):
 
     def set_state(self): self.store.do_flip = random.random() < self.p
 
-    def do_transform(self, x, is_y): return np.fliplr(x).copy() if self.store.do_flip else x
+    def do_transform(self, x, is_y,*args, **kwargs): return np.fliplr(x).copy() if self.store.do_flip else x
 
 
 class RandomLighting(Transform):
@@ -575,7 +582,7 @@ class RandomLighting(Transform):
         self.store.b_rand = rand0(self.b)
         self.store.c_rand = rand0(self.c)
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         if is_y and self.tfm_y != TfmType.PIXEL: return x
         b = self.store.b_rand
         c = self.store.c_rand
@@ -613,7 +620,7 @@ class RandomRotateZoom(CoordTransform):
                 break
         self.store.trans.set_state()
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         return self.store.trans.do_transform(x, is_y)
 
 
@@ -625,7 +632,7 @@ class RandomZoom(CoordTransform):
     def set_state(self):
         self.store.zoom = self.zoom_min + (self.zoom_max - self.zoom_min) * random.random()
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         return zoom_cv(x, self.store.zoom)
 
 
@@ -638,7 +645,7 @@ class RandomStretch(CoordTransform):
         self.store.stretch = self.max_stretch * random.random()
         self.store.stretch_dir = random.randint(0, 1)
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         if self.store.stretch_dir == 0:
             x = stretch_cv(x, self.store.stretch, 0)
         else:
@@ -671,8 +678,65 @@ class RandomBlur(Transform):
         kernel_size = np.random.choice(self.blur_strengths)
         self.store.kernel = (kernel_size, kernel_size)
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         return cv2.GaussianBlur(src=x, ksize=self.store.kernel, sigmaX=0) if self.store.apply_transform else x # (!) bugfix, was if self.apply_transform which = False
+
+
+class Gauss_noise(Transform):
+
+    def __init__(self, mean=0, stats=None, IntNorm=False, tfm_y=TfmType.NO):
+        super().__init__(tfm_y)
+        self.mean = mean
+        self.stats = stats
+        self.IntNorm = IntNorm
+
+        if isinstance(stats, dict):
+            self.d = stats
+        else:
+            m, s = stats
+            self.m = np.array(m, dtype=np.float32)
+            self.s = np.array(s, dtype=np.float32)
+            self.d = None  
+    
+    def do_transform(self, x, y, src_idx):
+        im = x
+        ch, row, col = im.shape
+        if self.IntNorm: 
+            for c in range(ch):
+                sigma = abs(np.random.randn()) *0.25
+                gauss = np.random.normal(self.mean, sigma,(1,row,col))
+                im[c] = im[c] + gauss
+                
+        else:
+            if self.d and y is not None:
+                if src_idx is not None:
+                    m, s = self.d[src_idx]
+                else:
+                    m, s = self.d[y]
+
+            for c in range(ch):
+                sigma = 50 * m[c] * abs(np.random.randn())
+                gauss = np.random.normal(self.mean,sigma,(1,row,col))
+                im[c] = im[c] + gauss
+
+        return im
+
+class Random_brightness(Transform):
+
+    def __init__(self, alpha = 1, tfm_y=TfmType.NO):
+        super().__init__(tfm_y)
+        self.alpha = alpha
+
+    def do_transform(self, x, *args, **kwargs):
+        im = x
+        ch, w, h = im.shape
+
+        for c in range(ch):
+            alpha_rand = self.alpha * abs(np.random.normal(1,1))
+            im[c] = im[c] * alpha_rand
+        
+        return im
+
 
 
 class Cutout(Transform):
@@ -680,7 +744,7 @@ class Cutout(Transform):
         super().__init__(tfm_y)
         self.n_holes, self.length = n_holes, length
 
-    def do_transform(self, img, is_y):
+    def do_transform(self, img, is_y,*args, **kwargs):
         return cutout(img, self.n_holes, self.length)
 
 
@@ -713,7 +777,7 @@ class GoogleNetResize(CoordTransform):
         # if self.random_state: random.seed(self.random_state)
         self.store.fp = random.random() < self.flip_hw_p
 
-    def do_transform(self, x, is_y):
+    def do_transform(self, x, is_y,*args, **kwargs):
         sz = self.sz_y if is_y else self.targ_sz
         if is_y:
             interpolation = cv2.INTER_NEAREST if self.tfm_y in (TfmType.COORD, TfmType.CLASS) else cv2.INTER_AREA
@@ -727,12 +791,8 @@ def compose(im, y, src_idx, fns): # (!)
     """ apply a collection of transformation functions fns to images
         (!) this calls e.g. 'normalize' with x and y inputs. 
     """
-
     for fn in fns:
-        if 'Normalize' in str(fn):
-            # print(fn) # (!)
-            im, y = fn(im, y, src_idx)
-        else: im, y = fn(im, y)
+        im, y = fn(im, y, src_idx)
 
     return im if y is None else (im, y)
 
@@ -753,14 +813,20 @@ crop_fn_lu = {CropType.RANDOM: RandomCrop, CropType.CENTER: CenterCrop, CropType
 class Transforms:
     def __init__(self, sz, tfms, normalizer, denorm, crop_type=CropType.CENTER,
                  tfm_y=TfmType.NO, sz_y=None):
-        if sz_y is None: sz_y = sz
-        self.sz, self.denorm, self.norm, self.sz_y = sz, denorm, normalizer, sz_y
-        crop_tfm = crop_fn_lu[crop_type](sz, tfm_y, sz_y)
+        if sz_y is None: sz_y = sz[1]
+        self.sz, self.denorm, self.norm, self.sz_y = sz[1], denorm, normalizer, sz_y
+        self.ch = sz[0]
+        crop_tfm = crop_fn_lu[crop_type](sz[1], tfm_y, sz_y)
         self.tfms = tfms
         self.tfms.append(crop_tfm)
         if normalizer is not None: self.tfms.append(normalizer)
         self.tfms.append(ChannelOrder(tfm_y))
 
+        # re-order list
+        for i, s in enumerate(self.tfms):
+            if any(n in str(s) for n in ['Gauss_noise', 'Random_brightness']):
+                self.tfms.append(s)
+                del self.tfms[i]
 
     def __call__(self, im, y=None, src_idx=None): return compose(im, y, src_idx, self.tfms) #(!)
 
@@ -809,10 +875,10 @@ def image_gen(normalizer, denorm, sz, tfms=None, max_zoom=None, pad=0, crop_type
         tfms = []
     elif not isinstance(tfms, collections.Iterable):
         tfms = [tfms]
-    if sz_y is None: sz_y = sz
+    if sz_y is None: sz_y = sz[1] #(!) sz[1]
     if scale is None:
-        scale = [RandomScale(sz, max_zoom, tfm_y=tfm_y, sz_y=sz_y) if max_zoom is not None
-                 else Scale(sz, tfm_y, sz_y=sz_y)]
+        scale = [RandomScale(sz[1], max_zoom, tfm_y=tfm_y, sz_y=sz_y) if max_zoom is not None #(!) sz[1]
+                 else Scale(sz[1], tfm_y, sz_y=sz_y)] #(!) sz[1]
     elif not is_listy(scale):
         scale = [scale]
     if pad: scale.append(AddPadding(pad, mode=pad_mode))
@@ -837,19 +903,19 @@ inception_stats = A([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 inception_models = (inception_4, inceptionresnet_2)
 
 
-def tfms_from_stats_dict(tfms_dict, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
-                         tfm_y=None, sz_y=None, pad_mode=cv2.BORDER_REFLECT, norm_y=True, scale=None):
+def tfms_from_stats_IntNorm(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
+                    tfm_y=None, sz_y=None, pad_mode=cv2.BORDER_REFLECT, norm_y=True, scale=None, IntNorm=True):
     """ Given the statistics of the training image sets, returns separate training and validation transform functions
     """
-    if aug_tfms is None: aug_tfms = []
-    tfm_norm = NormalizeWithDict(tfms_dict, tfm_y=tfm_y if norm_y else TfmType.NO) if tfms_dict is not None else None
-    tfm_denorm = DenormalizeWithDict(tfms_dict) if tfms_dict is not None else None
-    val_crop = CropType.CENTER if crop_type in (CropType.RANDOM, CropType.GOOGLENET) else crop_type
+    if aug_tfms is None: aug_tfms=[]
+    tfm_norm = Normalize(stats, IntNorm, tfm_y if tfm_y else None) if stats is not None else None
+    tfm_denorm = Denormalize(stats) if stats is not None else None
+    val_crop = CropType.CENTER if crop_type in (CropType.RANDOM,CropType.GOOGLENET) else crop_type
     val_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=val_crop,
                         tfm_y=tfm_y, sz_y=sz_y, scale=scale)
     trn_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=crop_type,
-                        tfm_y=tfm_y, sz_y=sz_y, tfms=aug_tfms, max_zoom=max_zoom, pad_mode=pad_mode, scale=scale)
-    return trn_tfm, val_tfmval_tfm
+            tfm_y=tfm_y, sz_y=sz_y, tfms=aug_tfms, max_zoom=max_zoom, pad_mode=pad_mode, scale=scale)
+    return trn_tfm, val_tfm 
 
 
 def tfms_from_stats(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,

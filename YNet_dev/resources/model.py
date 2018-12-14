@@ -357,8 +357,7 @@ def model_summary(m, input_size):
     summary = OrderedDict()
     hooks = []
     m.apply(register_hook)
-
-    # (!) no idea what this is doing
+    
     if is_listy(input_size[0]):
 
         x = [to_gpu(Variable(torch.rand(2,*in_size))) for in_size in input_size] #(!) modified first arg 3 -> 2

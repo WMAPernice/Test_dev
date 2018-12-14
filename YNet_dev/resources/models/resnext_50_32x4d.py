@@ -29,7 +29,7 @@ class LambdaReduce(LambdaBase):
 
 
 def resnext_50_32x4d(): return nn.Sequential( # Sequential,
-	nn.Conv2d(3,64,(7, 7),(2, 2),(3, 3),1,1,bias=False),
+	nn.Conv2d(2,64,(7, 7),(2, 2),(3, 3),1,1,bias=False),
 	nn.BatchNorm2d(64),
 	nn.ReLU(),
 	nn.MaxPool2d((3, 3),(2, 2),(1, 1)),

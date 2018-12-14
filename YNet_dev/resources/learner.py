@@ -64,7 +64,7 @@ class Learner():
         return self.data_
 
     def summary(self):
-        return model_summary(self.model, [2, self.data.sz,
+        return model_summary(self.model, [self.data.ch, self.data.sz,
                                           self.data.sz])  # (!) changed input channel number. TODO: automatically read channel number.
 
     def __repr__(self):
