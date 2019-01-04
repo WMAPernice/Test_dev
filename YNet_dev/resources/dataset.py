@@ -176,6 +176,12 @@ def csv_source(folder, csv_file, skip_header=True, suffix='', continuous=False):
 def dict_source(folder, fnames, csv_labels, suffix='', continuous=False):
     all_labels = sorted(list(set(p for o in csv_labels.values() for p in o)))
     full_names = [os.path.join(folder, str(fn) + suffix) for fn in fnames]
+    # print(len(csv_labels))
+    # print(csv_labels)
+    # print(len(full_names))
+    # # print(full_names)
+    labels_dictionary = labels_dict(csv_labels)
+    print(labels_dictionary)
     if continuous:
         label_arr = np.array([np.array(csv_labels[i]).astype(np.float32)
                               for i in fnames])
@@ -643,21 +649,22 @@ def split_by_idx(idxs, *a):
     mask[np.array(idxs)] = True
     return [(o[mask], o[~mask]) for o in a]
 
-def dict_adder(labels,l,img):
+def dict_adder(labels,l,name):
     if l in labels:
-        labels[l].append(img)
+        labels[l].append(name)
     else:
-        labels[l]=[img]
+        labels[l]=[name]
 
-def labels_dict(dataset):
+def labels_dict(labels):
     labels = {}
-    for i in dataset(1):
-        count = enumerate(dataset(1)[i]=1)
-        if count>1:
-            for l in dataset(1)[i]:
-                dict_adder(labels,l,dataset(0)[i])
+    for i in labels:
+        count = 0
+        for labs in labels[i]:
+            if len(labs)>1:
+                for l in labs:
+                    dict_adder(labels,l,i)
         else:
-            dict_adder(labels,dataset(1)[i],dataset(0)[i])
+            dict_adder(labels,i)
     return labels
 
 
