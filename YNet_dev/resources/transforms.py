@@ -210,7 +210,10 @@ class Normalize:
     """
 
     def __init__(self, stats, IntNorm=False, tfm_y=TfmType.NO):
-        if isinstance(stats, dict):
+        
+        if stats is None:
+            self.d = None 
+        elif isinstance(stats, dict):
             self.d = stats
         else:
             m, s = stats
@@ -903,7 +906,7 @@ inception_stats = A([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 inception_models = (inception_4, inceptionresnet_2)
 
 
-def tfms_from_stats_IntNorm(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
+def tfms_with_IntNorm(sz, stats=None, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
                     tfm_y=None, sz_y=None, pad_mode=cv2.BORDER_REFLECT, norm_y=True, scale=None, IntNorm=True):
     """ Given the statistics of the training image sets, returns separate training and validation transform functions
     """
