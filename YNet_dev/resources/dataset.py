@@ -643,6 +643,23 @@ def split_by_idx(idxs, *a):
     mask[np.array(idxs)] = True
     return [(o[mask], o[~mask]) for o in a]
 
+def dict_adder(labels,l,img):
+    if l in labels:
+        labels[l].append(img)
+    else:
+        labels[l]=[img]
+
+def labels_dict(dataset):
+    labels = {}
+    for i in dataset(1):
+        count = enumerate(dataset(1)[i]=1)
+        if count>1:
+            for l in dataset(1)[i]:
+                dict_adder(labels,l,dataset(0)[i])
+        else:
+            dict_adder(labels,dataset(1)[i],dataset(0)[i])
+    return labels
+
 
 def compute_default_weights(dataset):
     """
