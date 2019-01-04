@@ -157,12 +157,12 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         if all_val:
             val_iter = IterBatch(cur_data.val_dl)
 
-        print_dist = PrintDistribution(len(metrics_data.classes))
-
         # (!) START dynamic batch distribution adjustment
         #  Current implmentation not ideal; if adjust_class is None, resetting sampler on each iteration,
         #  potentially overwriting original settings in dataloader...
         
+        print_dist = PrintDistribution(len(metrics_data.classes))
+
         if adjust_class is not None:
             flx_weights = adjust_weights(cur_data.trn_dl, adjust_class)
             cur_data.trn_dl.set_dynamic_sampler(flx_weights)
