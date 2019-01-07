@@ -4,6 +4,7 @@ channels:
 - pytorch
 - defaults
 - peterjc123
+- menpo
 dependencies:
 - scipy
 - cuda90
@@ -93,6 +94,7 @@ dependencies:
 - bcolz
 - prompt_toolkit
 - pytest
+- opencv
 - pip:
   - torchvision>=0.1.9
   - opencv-python
