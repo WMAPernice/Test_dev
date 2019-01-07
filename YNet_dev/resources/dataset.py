@@ -168,20 +168,23 @@ def nhot_labels(label2idx, csv_labels, fnames, c):
     return np.stack([all_idx[o] for o in fnames])
 
 
-def csv_source(folder, csv_file, skip_header=True, suffix='', continuous=False):
+def csv_source(folder, csv_file, skip_header=True, suffix='', continuous=False, balance=False):
     fnames, csv_labels = parse_csv_labels(csv_file, skip_header)
-    return dict_source(folder, fnames, csv_labels, suffix, continuous)
+    return dict_source(folder, fnames, csv_labels, suffix, continuous, balance)
 
 
-def dict_source(folder, fnames, csv_labels, suffix='', continuous=False):
+def dict_source(folder, fnames, csv_labels, suffix='', continuous=False, balance=False):
     all_labels = sorted(list(set(p for o in csv_labels.values() for p in o)))
     full_names = [os.path.join(folder, str(fn) + suffix) for fn in fnames]
-    # print(len(csv_labels))
-    # print(csv_labels)
-    # print(len(full_names))
-    # # print(full_names)
-    labels_dictionary = labels_dict(csv_labels)
-    print(labels_dictionary)
+
+    # This returns the balance source dictionary
+    if balance:
+        labels_dictionary = labels_dict(csv_labels)
+    else:
+        labels_dictionary = None
+        # for key, item in labels_dictionary.items():
+        #     print("Length of ", key, "is: ", len(labels_dictionary[key]))
+
     if continuous:
         label_arr = np.array([np.array(csv_labels[i]).astype(np.float32)
                               for i in fnames])
@@ -190,7 +193,7 @@ def dict_source(folder, fnames, csv_labels, suffix='', continuous=False):
         label_arr = nhot_labels(label2idx, csv_labels, fnames, len(all_labels))
         is_single = np.all(label_arr.sum(axis=1) == 1)
         if is_single: label_arr = np.argmax(label_arr, axis=1)
-    return full_names, label_arr, all_labels
+    return full_names, label_arr, all_labels, labels_dictionary
 
 
 class BaseDataset(Dataset):
@@ -570,6 +573,7 @@ class ImageClassifierData(ImageData):
         test_lbl2index = {}
 
         trn, val = [folder_source(path, o, lbl2index) for o in (trn_name, val_name)]
+
         if balance:
             weights = compute_adjusted_weights(trn)
         else:
@@ -587,7 +591,8 @@ class ImageClassifierData(ImageData):
 
     @classmethod
     def from_csv(cls, path, folder, csv_fname, bs=64, tfms=(None, None),
-                 val_idxs=None, suffix='', test_name=None, continuous=False, skip_header=True, num_workers=8):
+                 val_idxs=None, suffix='', test_name=None, continuous=False, skip_header=True, 
+                 num_workers=8, balance=False):
         """ Read in images and their labels given as a CSV file.
 
         This method should be used when training image labels are given in an CSV file as opposed to
@@ -611,18 +616,36 @@ class ImageClassifierData(ImageData):
         Returns:
             ImageClassifierData
         """
+
         assert not (tfms[0] is None or tfms[
             1] is None), "please provide transformations for your train and validation sets"
         assert not (os.path.isabs(folder)), "folder needs to be a relative path"
-        fnames, y, classes = csv_source(folder, csv_fname, skip_header, suffix, continuous=continuous)
+        fnames, y, classes , labels_d = csv_source(folder, csv_fname, skip_header, suffix, continuous=continuous, balance=balance)
         return cls.from_names_and_array(path, fnames, y, classes, val_idxs, test_name,
-                                        num_workers=num_workers, suffix=suffix, tfms=tfms, bs=bs, continuous=continuous)
+                                        num_workers=num_workers, suffix=suffix, tfms=tfms, bs=bs, continuous=continuous, 
+                                        balance=balance, labels_d=labels_d)
 
     @classmethod
     def from_names_and_array(cls, path, fnames, y, classes, val_idxs=None, test_name=None,
-                             num_workers=8, suffix='', tfms=(None, None), bs=64, continuous=False):
+                             num_workers=8, suffix='', tfms=(None, None), bs=64, continuous=False, 
+                             balance=False, labels_d=None):
+        
+        
+        # balancing happens here with labels_d
+        if balance:
+            weights = compute_adjusted_weights_csv(fnames,y,labels_d)
+        else:
+            weights = None
+
+
+
         val_idxs = get_cv_idxs(len(fnames)) if val_idxs is None else val_idxs
         ((val_fnames, trn_fnames), (val_y, trn_y)) = split_by_idx(val_idxs, np.array(fnames), y)
+
+        # print(trn_fnames)
+        # print(trn_y)
+        # print("Shape of Y: ", np.shape(trn_y))
+        # print("Shape of trn: ", np.shape(trn_fnames))
 
         test_fnames = read_dir(path, test_name) if test_name else None
         if continuous:
@@ -631,7 +654,7 @@ class ImageClassifierData(ImageData):
             f = FilesIndexArrayDataset if len(trn_y.shape) == 1 else FilesNhotArrayDataset
         datasets = cls.get_ds(f, (trn_fnames, trn_y), (val_fnames, val_y), tfms,
                               path=path, test=test_fnames)
-        return cls(path, datasets, bs, num_workers, classes=classes)
+        return cls(path, datasets, bs, num_workers, classes=classes, balance=weights)
 
 
 def split_by_idx(idxs, *a):
@@ -650,22 +673,25 @@ def split_by_idx(idxs, *a):
     return [(o[mask], o[~mask]) for o in a]
 
 def dict_adder(labels,l,name):
+    l = int(l)
     if l in labels:
         labels[l].append(name)
     else:
         labels[l]=[name]
+    # print(labels)
 
 def labels_dict(labels):
-    labels = {}
-    for i in labels:
-        count = 0
-        for labs in labels[i]:
-            if len(labs)>1:
-                for l in labs:
-                    dict_adder(labels,l,i)
+    # print(labels["002679c2-bbb6-11e8-b2ba-ac1f6b6435d0"])
+    d = {}
+    for name, ids in labels.items():
+        # print(name," : ", labs)
+        if len(ids)>1:
+            for l in ids:
+                dict_adder(d,l,name)
         else:
-            dict_adder(labels,i)
-    return labels
+            dict_adder(d,ids[0],name)
+            # print(ids[0])
+    return d
 
 
 def compute_default_weights(dataset):
@@ -704,6 +730,39 @@ def compute_adjusted_weights(dataset):
         weights[dataset[1] == labels[idx]] += correction
 
     return weights
+
+def compute_adjusted_weights_csv(x,y,d):
+    """
+    :param x: samples and names e.g. generic_filename; 
+    :param y: labels matrix with possible multiple labels for each sample (0 or 1)
+    :param d: dictionary with labels to filenames
+    :return: set of weights/probabilities for each sample; represents how often it is picked
+    """
+    
+    # counting occurances per label
+    occurrences = []
+    labels = []
+    for key in d:
+        occurrences.append(len(d[key]))
+        labels.append(key)
+
+    # calculating weights
+    weights = np.zeros(len(x))
+    probs = [100 * count/sum(occurrences) for count in occurrences]
+
+    for idx, label in enumerate(labels):
+        weights[dataset[1] == label] = probs[idx] / occurrences[idx]
+    desired = 100 / len(labels) # desired probability per class
+
+    for idx, prob in enumerate(probs):
+        delta = desired - prob # unlikely to be 0
+        correction = delta / occurrences[idx]
+        weights[dataset[1] == labels[idx]] += correction
+
+    return weights
+        
+
+
 
 
 def balance_ds(dataset):
