@@ -18,17 +18,25 @@ def accuracy_multi(preds, targs, thresh):
 def accuracy_multi_np(preds, targs, thresh):
     return ((preds>thresh)==targs).mean()
 
-def recall(preds, targs, thresh=0.5):
+def recall(preds, targs, thresh=0.5, kind='micro', eps=1e-9): #(!) modified to support macro averages
     pred_pos = preds > thresh
-    tpos = torch.mul((targs.byte() == pred_pos), targs.byte())
-    return tpos.sum()/targs.sum()
+    tpos = torch.mul((targs.byte() == pred_pos), targs.byte()).float()
+    if kind == 'macro':
+        _rec = torch.mean(tpos.sum(dim=0) / (targs.float().sum(dim=0) + eps))
+    else:
+        _rec = tpos.sum()/targs.sum()
+    return _rec
 
-def precision(preds, targs, thresh=0.5):
+def precision(preds, targs, thresh=0.5, kind='micro', eps=1e-9): #(!) modified to support macro averages
     pred_pos = preds > thresh
-    tpos = torch.mul((targs.byte() == pred_pos), targs.byte())
-    return tpos.sum()/pred_pos.sum()
+    tpos = torch.mul((targs.byte() == pred_pos), targs.byte()).float()
+    if kind == 'macro':
+        _prec = torch.mean(tpos.sum(dim=0) / (pred_pos.float().sum(dim=0) + eps))
+    else: 
+        _prec = tpos.sum()/(pred_pos.sum() + eps) # eps to avoid div-zero if nothing > threshold
+    return _prec
 
-def fbeta(preds, targs, beta, thresh=0.5):
+def fbeta(preds, targs, beta=1, thresh=0.5, kind='micro'): #(!) modified to support macro averages
     """Calculates the F-beta score (the weighted harmonic mean of precision and recall).
     This is the micro averaged version where the true positives, false negatives and
     false positives are calculated globally (as opposed to on a per label basis).
@@ -38,8 +46,12 @@ def fbeta(preds, targs, beta, thresh=0.5):
     """
     assert beta > 0, 'beta needs to be greater than 0'
     beta2 = beta ** 2
-    rec = recall(preds, targs, thresh)
-    prec = precision(preds, targs, thresh)
+    rec = recall(preds, targs, thresh, kind)
+    prec = precision(preds, targs, thresh, kind)
     return (1 + beta2) * prec * rec / (beta2 * prec + rec)
 
-def f1(preds, targs, thresh=0.5): return fbeta(preds, targs, 1, thresh)
+def f1_micro(preds, targs, thresh=0.5, kind='micro'): #(!) replaces original f1() function ... modified to support macro averages
+    return fbeta(preds, targs, 1, thresh, kind)
+
+def f1_macro(preds, targs, thresh=0.5, kind='macro'): # (!) support for macro F1 score
+    return fbeta(preds, targs, 1, thresh, kind)

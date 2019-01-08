@@ -161,7 +161,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         #  Current implmentation not ideal; if adjust_class is None, resetting sampler on each iteration,
         #  potentially overwriting original settings in dataloader...
         
-        print_dist = PrintDistribution(len(metrics_data.classes))
+        # print_dist = PrintDistribution(len(metrics_data.classes)) # (!)
 
         if adjust_class is not None:
             flx_weights = adjust_weights(cur_data.trn_dl, adjust_class)
@@ -171,7 +171,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         # (!) END
         
         for (*x, y) in t:
-            print_dist(y)
+            # print_dist(y)
 
             batch_num += 1
             for cb in callbacks: cb.on_batch_begin()
@@ -201,8 +201,8 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         # (!) START logging
         global GLOBAL_STEP
         print(f"EPOCH {epoch} {'-' * 40} STEP {GLOBAL_STEP}")
-        print_dist.describe()
-        per_class_accuracies(metrics_data, model, GLOBAL_STEP)
+        # print_dist.describe()
+        # per_class_accuracies(metrics_data, model, GLOBAL_STEP)
         # (!) END
 
         if not all_val:
