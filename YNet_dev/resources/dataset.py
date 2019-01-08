@@ -497,36 +497,21 @@ class ImageData(ModelData):
 
         # res[0].idx_to_class = trn[2] #(!) What does this do?!
 
-        if test is not None:
-            # if isinstance(test, tuple):
-            #     test_lbls = test[1]
-            #     test = test[0]
-            #     test_src_idx = test[3]
-            #     # print('Tuple')
-            # else:
-            #     test_lbls = np.zeros((len(test), 1))
-            #     # print('Not_tuple')
-
-            # res += [
-            #     fn(test, test_lbls, tfms[2], test_src_idx, **kwargs),  # test (!) 1 -> 2
-            #     fn(test, test_lbls, tfms[0], test_src_idx, **kwargs)  # test_aug
-            # ]
-            
+        if test is not None:           
             if isinstance(test, tuple):
                 res += [
                     fn(test[0], test[1], tfms[2], test[3], **kwargs),  # test (!) 1 -> 2
                     fn(test[0], test[1], tfms[0], test[3], **kwargs)  # test_aug
                 ]
-            else:
+            else:             
                 test_lbls = np.zeros((len(test), 1))
                 res += [
-                    fn(test, test_lbls, tfms[2], **kwargs),  # test (!) 1 -> 2
-                    fn(test, test_lbls, tfms[0], **kwargs)  # test_aug
+                    fn(test, test_lbls, tfms[1], None, **kwargs),  # test (!) tfms[2] -> 1; temporary. No longer allows custom stats to be passed for test-images...
+                    fn(test, test_lbls, tfms[0], None, **kwargs)  # test_aug
                 ]
 
         else:
             res += [None, None]
-            # print('Test is None')
         return res
 
 
