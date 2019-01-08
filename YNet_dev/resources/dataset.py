@@ -693,7 +693,6 @@ def labels_dict(labels):
             # print(ids[0])
     return d
 
-
 def compute_default_weights(dataset):
     """
     :param dataset: dataset[0]: samples and names e.g. generic_filename; dataset[1] labels e.g. 0 or 1
@@ -740,26 +739,47 @@ def compute_adjusted_weights_csv(x,y,d):
     """
     
     # counting occurances per label
-    occurrences = []
-    labels = []
+    occurrences = [] # how many times each label occurrs
+    labels = [] # list of all labels
     for key in d:
         occurrences.append(len(d[key]))
         labels.append(key)
 
+    # list of all names with their label (no multiclass) => duplicates in list
+    reverse_d = [[],[]]
+    for v, k in d.items():
+        reverse_d[0].append(k)
+        reverse_d[1].append(v) 
+
     # calculating weights
-    weights = np.zeros(len(x))
+    weights = np.zeros(len(reverse_d[1]))
     probs = [100 * count/sum(occurrences) for count in occurrences]
 
     for idx, label in enumerate(labels):
-        weights[dataset[1] == label] = probs[idx] / occurrences[idx]
+        weights[reverse_d[1] == label] = probs[idx] / occurrences[idx]
     desired = 100 / len(labels) # desired probability per class
 
     for idx, prob in enumerate(probs):
         delta = desired - prob # unlikely to be 0
         correction = delta / occurrences[idx]
-        weights[dataset[1] == labels[idx]] += correction
+        weights[reverse_d[1] == labels[idx]] += correction
+    
+    # remove duplicates and only keep highest weights
+    temp_d = {}
+    for i in range(len(reverse_d[0])):
+        if reverse_d[0][i] in temp_d:
+            if temp_d[reverse_d[0][i]] < weights[i]:
+                temp_d[reverse_d[0][i]] = weights[i]
+        else:
+            temp_d[reverse_d[0][i]] = weights[i]
+    
+    weights2 = np.zeros(len(temp_d))
+    i = 0
+    for k, v in temp_d:
+        weights2[i] = v
+        i += 1
 
-    return weights
+    return weights2
         
 
 
