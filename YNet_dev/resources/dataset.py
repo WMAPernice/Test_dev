@@ -731,9 +731,13 @@ def compute_adjusted_weights_csv(x,y):
     # counting occurrences per label
     occurrences = [] # how many times each label occurrs
     labels = [] # list of all labels
+    l_o = {}
     for key in d:
         occurrences.append(len(d[key]))
         labels.append(key)
+        l_o[key] = [len(d[key])] # l_o[key][0] = occurrences
+
+    # print(l_o)
 
     # list of all names with their label (no multiclass) => duplicates in list
     reverse_d = [[],[]]
@@ -749,43 +753,119 @@ def compute_adjusted_weights_csv(x,y):
     # calculating weights
     weights = np.zeros(len(reverse_d[1]))
     probs = [100 * count/sum(occurrences) for count in occurrences]
-
-    for i in range(len(weights)):
-        weights[i] = probs[reverse_d[1][i]] / occurrences[reverse_d[1][i]]
-    desired = 100 / len(labels) # desired probability per class
-
-    for idx, prob in enumerate(probs):
-        delta = desired - prob # unlikely to be 0
-        correction = delta / occurrences[idx]
-        weights[reverse_d[1] == labels[idx]] += correction
     
-    # remove duplicates and only keep highest weights
-    temp_d = {}
-    for i in range(len(reverse_d[0])):
-        if reverse_d[0][i] in temp_d:
-            if temp_d[reverse_d[0][i]] < weights[i]:
-                temp_d[reverse_d[0][i]] = weights[i]
-        else:
-            temp_d[reverse_d[0][i]] = weights[i]
-    
-    weights2 = np.zeros(len(temp_d))
-    i = 0
-    for k, v in temp_d.items():
-        weights2[i] = v
-        i += 1
 
-    # print("x ",len(x))
-    # print("y ",len(y))
-    # print("d ",len(d))
-    # print("weights ",np.shape(weights))
-    # print("weights2 ", len(weights2))
-    # print("rev_d ", len(reverse_d[1]))
-    
-    # for i in range(100):
-    #     print(weights2[i])
-    # print("Sum", sum(weights2))
+    ys = y
 
-    return weights2
+    cut = 100/len(labels)
+    perc = (ys.sum(axis=0) / ys.sum()) * 100
+
+    weights_per_label = [cut / perc[i] for i in range(len(labels))]
+    weights_per_im = [np.max(ys[i] * weights_per_label) for i in range(len(ys))]
+
+    weights = weights_per_im
+    # for i in range(len(weights)):
+    #     weights[i] = probs[reverse_d[1][i]] / occurrences[reverse_d[1][i]]
+    # desired = 100 / len(labels) # desired probability per class
+
+    # weights_old = weights
+
+    # for idx, prob in enumerate(probs):
+    #     delta = desired - prob # unlikely to be 0
+    #     correction = delta / occurrences[idx]
+    #     weights[reverse_d[1] == labels[idx]] += correction
+    
+    # s = 0
+    # for key in l_o:
+    #     s += l_o[key][0] # l_o[key][0] = occurrences
+    # for key in l_o: 
+    #     l_o[key].append(100*l_o[key][0]/s) # l_o[key][1] = probs
+
+    # p_each = 100 / s # prob for each sample
+
+    # # print(l_o)
+
+    # for l, o in l_o.items():
+    #     delta = desired - o[1] # o[1] = prob
+    #     correction = delta / o[0]
+    #     p_label = p_each + correction
+    #     l_o[l].append(p_label) # corrected prob for each sample = l_o[key][2]
+
+    # s2 = 0
+    # for l, o in l_o.items():
+    #     print("key: ", l, " : ",o[1]/o[0], "vs ", o[2]) # old prob each vs new prob each
+    #     s2 += o[2]*o[0]
+    # print("total prob : ", s2)
+
+
+    # # dp = {}
+    # # for key in :
+    # #     dp[labels[i]] = [probs[i]]
+    
+    # # for l, p in dp.items():
+    # #     delta = desired - p[0]
+    # #     print("lab : ", l, " d ", delta, " d/o ", delta / occurrences[labels.index(l)], " p/o ", dp[l][0] / occurrences[labels.index(l)], "p/o + d/o ", dp[l][0] / occurrences[labels.index(l)] + delta / occurrences[labels.index(l)])
+    # #     correction = delta
+    # #     dp[l].append((dp[l][0] + correction) / occurrences[labels.index(l)])
+    
+    # # for l in dp:
+    # #     print("key: ", l, " : ",dp[l][0], "vs ", dp[l][1])
+
+
+    # weights_d = {}
+    # for i in range(len(weights)):
+    #     if weights[i] in weights_d:
+    #         continue
+    #     else:
+    #         weights_d[weights[i]] = weights_old[i]
+            
+    #     # weights_test[1].append(weights_old[i])
+    # # print(weights_d)
+    # for k, v in weights_d.items():
+    #     print(k, " vs old ", v)
+    # # print(weights_test)
+    
+    # # remove duplicates and only keep highest weights
+    # temp_d = {}
+    # for i in range(len(reverse_d[0])):
+    #     if reverse_d[0][i] in temp_d:
+    #         if temp_d[reverse_d[0][i]] < weights[i]:
+    #             temp_d[reverse_d[0][i]] = weights[i]
+    #     else:
+    #         temp_d[reverse_d[0][i]] = weights[i]
+    
+    # weights2 = np.zeros(len(temp_d))
+    # i = 0
+    # for k, v in temp_d.items():
+    #     weights2[i] = v
+    #     i += 1
+
+    # test_d = {}
+    # for i in range(len(labels)):
+    #     test_d[i] = 0
+    # for i in range(len(reverse_d)):
+    #     if test_d[reverse_d[1][i]] > 0:
+    #         continue
+    #     else:
+    #         test_d[reverse_d[1][i]] = weights[i]
+
+
+    # # print(test_d)
+    # # print(weights)
+    # # print("mean: ",np.mean(weights))
+    # # print("median: ", np.median(weights))
+    # # print("Stan Dev: ", np.std(weights))
+    # # print(probs)
+
+    # ws = {}
+    # for w in weights:
+    #     if w in ws:
+    #         continue
+    #     else:
+    #         ws[w]=0
+    # # print(ws)
+
+    return weights
         
 
 
