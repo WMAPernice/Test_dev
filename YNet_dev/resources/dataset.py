@@ -751,120 +751,41 @@ def compute_adjusted_weights_csv(x,y):
             reverse_d[1].append(v)
                 
     # calculating weights
+
+    
+    
     weights = np.zeros(len(reverse_d[1]))
     probs = [100 * count/sum(occurrences) for count in occurrences]
-    
+
+    #####################################################################
 
     ys = y
+    # print(f"ys shape: {ys.shape}")
+    # print(ys.shape[1])
 
-    cut = 100/len(labels)
-    perc = (ys.sum(axis=0) / ys.sum()) * 100
+    cut = 1/ys.shape[1]
+    # print(f"cut: {cut}")
 
-    weights_per_label = [cut / perc[i] for i in range(len(labels))]
-    weights_per_im = [np.max(ys[i] * weights_per_label) for i in range(len(ys))]
+    perc = (ys.sum(axis=0) / ys.sum()) 
+    # print(f"perc: {perc}")
+
+    weights_per_label = [cut / perc[i] for i in range(ys.shape[1])]
+    # print(f"weights_per_label: {weights_per_label}")
+    # print(f"multiply check: {perc * weights_per_label}")
+
+    min_weight = False
+
+    if min_weight:
+        print('min_weights')
+        w_matrix = [ys[i] * weights_per_label for i in range(len(ys))]
+        weights_per_im = [np.min(w_matrix[i][np.nonzero(w_matrix[i])]) for i in range(len(ys))]
+    else:
+        weights_per_im = [np.max(ys[i] * weights_per_label) for i in range(len(ys))]
+    
+    # print(f"weights_per_im: {weights_per_im[:10]}")
 
     weights = weights_per_im
-    # for i in range(len(weights)):
-    #     weights[i] = probs[reverse_d[1][i]] / occurrences[reverse_d[1][i]]
-    # desired = 100 / len(labels) # desired probability per class
-
-    # weights_old = weights
-
-    # for idx, prob in enumerate(probs):
-    #     delta = desired - prob # unlikely to be 0
-    #     correction = delta / occurrences[idx]
-    #     weights[reverse_d[1] == labels[idx]] += correction
     
-    # s = 0
-    # for key in l_o:
-    #     s += l_o[key][0] # l_o[key][0] = occurrences
-    # for key in l_o: 
-    #     l_o[key].append(100*l_o[key][0]/s) # l_o[key][1] = probs
-
-    # p_each = 100 / s # prob for each sample
-
-    # # print(l_o)
-
-    # for l, o in l_o.items():
-    #     delta = desired - o[1] # o[1] = prob
-    #     correction = delta / o[0]
-    #     p_label = p_each + correction
-    #     l_o[l].append(p_label) # corrected prob for each sample = l_o[key][2]
-
-    # s2 = 0
-    # for l, o in l_o.items():
-    #     print("key: ", l, " : ",o[1]/o[0], "vs ", o[2]) # old prob each vs new prob each
-    #     s2 += o[2]*o[0]
-    # print("total prob : ", s2)
-
-
-    # # dp = {}
-    # # for key in :
-    # #     dp[labels[i]] = [probs[i]]
-    
-    # # for l, p in dp.items():
-    # #     delta = desired - p[0]
-    # #     print("lab : ", l, " d ", delta, " d/o ", delta / occurrences[labels.index(l)], " p/o ", dp[l][0] / occurrences[labels.index(l)], "p/o + d/o ", dp[l][0] / occurrences[labels.index(l)] + delta / occurrences[labels.index(l)])
-    # #     correction = delta
-    # #     dp[l].append((dp[l][0] + correction) / occurrences[labels.index(l)])
-    
-    # # for l in dp:
-    # #     print("key: ", l, " : ",dp[l][0], "vs ", dp[l][1])
-
-
-    # weights_d = {}
-    # for i in range(len(weights)):
-    #     if weights[i] in weights_d:
-    #         continue
-    #     else:
-    #         weights_d[weights[i]] = weights_old[i]
-            
-    #     # weights_test[1].append(weights_old[i])
-    # # print(weights_d)
-    # for k, v in weights_d.items():
-    #     print(k, " vs old ", v)
-    # # print(weights_test)
-    
-    # # remove duplicates and only keep highest weights
-    # temp_d = {}
-    # for i in range(len(reverse_d[0])):
-    #     if reverse_d[0][i] in temp_d:
-    #         if temp_d[reverse_d[0][i]] < weights[i]:
-    #             temp_d[reverse_d[0][i]] = weights[i]
-    #     else:
-    #         temp_d[reverse_d[0][i]] = weights[i]
-    
-    # weights2 = np.zeros(len(temp_d))
-    # i = 0
-    # for k, v in temp_d.items():
-    #     weights2[i] = v
-    #     i += 1
-
-    # test_d = {}
-    # for i in range(len(labels)):
-    #     test_d[i] = 0
-    # for i in range(len(reverse_d)):
-    #     if test_d[reverse_d[1][i]] > 0:
-    #         continue
-    #     else:
-    #         test_d[reverse_d[1][i]] = weights[i]
-
-
-    # # print(test_d)
-    # # print(weights)
-    # # print("mean: ",np.mean(weights))
-    # # print("median: ", np.median(weights))
-    # # print("Stan Dev: ", np.std(weights))
-    # # print(probs)
-
-    # ws = {}
-    # for w in weights:
-    #     if w in ws:
-    #         continue
-    #     else:
-    #         ws[w]=0
-    # # print(ws)
-
     return weights
         
 
