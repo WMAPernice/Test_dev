@@ -489,13 +489,14 @@ class ImageData(ModelData):
         # res[0].idx_to_class = trn[2] #(!) What does this do?!
 
         if test is not None:           
-            if isinstance(test, tuple):
+            if isinstance(test, tuple):               
                 res += [
-                    fn(test[0], test[1], tfms[2], test[3], **kwargs),  # test (!) 1 -> 2
-                    fn(test[0], test[1], tfms[0], test[3], **kwargs)  # test_aug
+                    fn(test[0], test[1], tfms[1], None, **kwargs),  # test (!) 1 -> 2
+                    fn(test[0], test[1], tfms[0], None, **kwargs)  # test_aug
                 ]
             else:             
                 test_lbls = np.zeros((len(test), 1))
+                print(type(test_lbls))
                 res += [
                     fn(test, test_lbls, tfms[1], None, **kwargs),  # test (!) tfms[2] -> 1; temporary. No longer allows custom stats to be passed for test-images...
                     fn(test, test_lbls, tfms[0], None, **kwargs)  # test_aug
@@ -629,12 +630,16 @@ class ImageClassifierData(ImageData):
 
 
         test_fnames = read_dir(path, test_name) if test_name else None
+        test_im_ids_dict = {fname: idx for idx, fname in enumerate(test_fnames)}
+        print(test_im_ids_dict)
+        test_im_ids = np.array(list(test_im_ids_dict.values()))
+
         if continuous:
             f = FilesIndexArrayRegressionDataset
         else:
             f = FilesIndexArrayDataset if len(trn_y.shape) == 1 else FilesNhotArrayDataset
         datasets = cls.get_ds(f, (trn_fnames, trn_y), (val_fnames, val_y), tfms,
-                              path=path, test=test_fnames)
+                              path=path, test=(test_fnames, test_im_ids)) #(!) np.array(test_fnames) output as test labels
         return cls(path, datasets, bs, num_workers, classes=classes, balance=weights)
 
 
