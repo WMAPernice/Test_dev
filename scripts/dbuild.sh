@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker build -f ./docker/Dockerfile.fastai -t wmapernice/ynet_docker_files:$1 . 
+docker build -f ./docker/Dockerfile.mine -t wmapernice/hpa_challenge:$1 . 
