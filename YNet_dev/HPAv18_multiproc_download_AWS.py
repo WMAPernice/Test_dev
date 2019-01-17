@@ -30,8 +30,8 @@ if __name__ == '__main__':
     process_num = 24
     image_size = (512, 512)
     url = 'http://v18.proteinatlas.org/images/'
-    csv_path =  "datasets/Kaggle_HPA_2018/HPAv18RBGY_wodpl.csv"
-    save_dir = "datasets/Kaggle_HPA_2018/HPA_multiproc_test"
+    csv_path =  "datasets/HPA_challenge_2018/HPAv18RBGY_wodpl.csv"
+    save_dir = "datasets/HPA_challenge_2018/HPA_multiproc"
 
     # Create the directory to save the images in case it doesn't exist
     try:
@@ -42,7 +42,7 @@ if __name__ == '__main__':
         pass
 
     print('Parent process %s.' % os.getpid())
-    img_list = pd.read_csv(csv_path)['Id'][:100] # limiting download for testing
+    img_list = pd.read_csv(csv_path)['Id'] # limiting download for testing
     list_len = len(img_list)
     p = Pool(process_num)
     for i in range(process_num):
