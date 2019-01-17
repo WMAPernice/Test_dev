@@ -12,7 +12,7 @@ def download(pid, image_list, base_url, save_dir, image_size=(512, 512)):
         img_id = i.split('_', 1)
         for color in colors:
             img_path = img_id[0] + '/' + img_id[1] + '_' + color + '.jpg'
-            img_name = i + '_' + color + '.png'
+            img_name = i + '-' + color + '.png'
             img_url = base_url + img_path
 
             # Get the raw response from the url
@@ -30,8 +30,8 @@ if __name__ == '__main__':
     process_num = 24
     image_size = (512, 512)
     url = 'http://v18.proteinatlas.org/images/'
-    csv_path =  "datasets/Kaggle_HPA_2018/HPAv18RBGY_wodpl.csv"
-    save_dir = "datasets/Kaggle_HPA_2018/HPA_multiproc_test"
+    csv_path =  "YNet_dev/datasets/Kaggle_HPA_2018/HPAv18RBGY_wodpl.csv"
+    save_dir = "YNet_dev/datasets/Kaggle_HPA_2018/HPA_multiproc_test"
 
     # Create the directory to save the images in case it doesn't exist
     try:
