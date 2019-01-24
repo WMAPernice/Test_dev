@@ -42,7 +42,7 @@ class ConvnetBuilder():
             cut, self.lr_cut = 0, 0
         cut -= xtra_cut
         
-        if '_c' in str(f):
+        if '_c' in str(f): #(!)
             layers = cut_model(f(pretrained,ch), cut)
         else:
             layers = cut_model(f(pretrained), cut)
