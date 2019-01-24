@@ -7,7 +7,7 @@ import pandas as pd
 from PIL import Image
 
 def download(pid, image_list, base_url, save_dir, image_size=(512, 512)):
-    colors = ['red', 'green', 'blue'] # removed 'yellow'
+    colors = ['red', 'green', 'yellow', 'blue'] 
     for i in tqdm(image_list, postfix=pid):
         img_id = i.split('_', 1)
         for color in colors:
@@ -30,8 +30,8 @@ if __name__ == '__main__':
     process_num = 24
     image_size = (512, 512)
     url = 'http://v18.proteinatlas.org/images/'
-    csv_path =  "datasets/HPA_challenge_2018/HPAv18RBGY_wodpl.csv"
-    save_dir = "datasets/HPA_challenge_2018/HPA_multiproc"
+    csv_path =  "datasets/HPA_challenge_2018/HPAv18_60x_def_dupes_removed.csv"
+    save_dir = "datasets/HPA_challenge_2018/HPAv18_BGRY_source"
 
     # Create the directory to save the images in case it doesn't exist
     try:
