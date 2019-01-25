@@ -43,7 +43,7 @@ class DataLoader(object):
             if sampler is None:
                 sampler = RandomSampler(dataset) if shuffle else SequentialSampler(dataset)
             if weights is not None:  # (!)
-                print("weighted")
+                print("Using WeightedRandomSampler")
                 sampler = WeightedRandomSampler(weights, len(weights))
             batch_sampler = BatchSampler(sampler, batch_size, drop_last)
 

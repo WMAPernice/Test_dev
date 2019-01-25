@@ -9,9 +9,10 @@ model_meta = {
     resnext50: [8, 6], resnext101: [8, 6], resnext101_64: [8, 6],
     wrn: [8, 6], inceptionresnet_2: [-2, 9], inception_4: [-1, 9],
     dn121: [0, 7], dn161: [0, 7], dn169: [0, 7], dn201: [0, 7],
-    resnet18_c: [8, 6], resnet34_c: [8, 6], resnet50_c: [8, 6], resnet101_c: [8, 6], resnet152_c: [8, 6],
+    resnet18_c: [8, 6], resnet34_c: [8, 6], resnet50_c: [8, 6], resnet101_c: [8, 6], resnet152_c: [8, 6], #(!)
+    dn121_c: [0, 7], dn161_c: [0, 7], dn169_c: [0, 7], dn201_c: [0, 7], #(!)
 }
-model_features = {inception_4: 3072, dn121: 2048, dn161: 4416, }  # nasnetalarge: 4032*2}
+model_features = {inception_4: 3072, dn121: 2048, dn161: 4416, dn121_c: 2048, dn161_c: 4416}  # nasnetalarge: 4032*2} #(!)
 
 
 class ConvnetBuilder():

@@ -31,7 +31,7 @@ def stretch_cv(x, sr, sc, interpolation=cv2.INTER_AREA):
     r, c, *_ = x.shape
     x = cv2.resize(x, None, fx=sr + 1, fy=sc + 1, interpolation=interpolation)
     nr, nc, *_ = x.shape
-    cr = (nr - r) // 2;
+    cr = (nr - r) // 2
     cc = (nc - c) // 2
     return x[cr:r + cr, cc:c + cc]
 

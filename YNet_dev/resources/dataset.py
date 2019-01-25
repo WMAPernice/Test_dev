@@ -605,41 +605,28 @@ class ImageClassifierData(ImageData):
     def from_names_and_array(cls, path, fnames, y, classes, val_idxs=None, test_name=None,
                              num_workers=8, suffix='', tfms=(None, None), bs=64, continuous=False, 
                              balance=False):
-        
-        
-        
-
-
-
+   
         val_idxs = get_cv_idxs(len(fnames)) if val_idxs is None else val_idxs
         ((val_fnames, trn_fnames), (val_y, trn_y)) = split_by_idx(val_idxs, np.array(fnames), y)
 
-        # print(trn_fnames)
-        # print(trn_y)
-        # print("Shape of trnY: ", np.shape(trn_y))
-        # print("Shape of trnX: ", np.shape(trn_fnames))
-
-        # print("Shape of fnam: ", np.shape(fnames))
-        # print("Shape of Y:    ", np.shape(y))
-
-        # balancing happens here with labels_d
         if balance:
             weights = compute_adjusted_weights_csv(trn_fnames,trn_y)
         else:
             weights = None
 
-
         test_fnames = read_dir(path, test_name) if test_name else None
+        ######################################
+        # Debug for problems in Kaggle_submission file... (order?)
         test_im_ids_dict = {fname: idx for idx, fname in enumerate(test_fnames)}
-        print(test_im_ids_dict)
         test_im_ids = np.array(list(test_im_ids_dict.values()))
+        ######################################
 
         if continuous:
             f = FilesIndexArrayRegressionDataset
         else:
             f = FilesIndexArrayDataset if len(trn_y.shape) == 1 else FilesNhotArrayDataset
         datasets = cls.get_ds(f, (trn_fnames, trn_y), (val_fnames, val_y), tfms,
-                              path=path, test=(test_fnames, test_im_ids)) #(!) np.array(test_fnames) output as test labels
+                              path=path, test=(test_fnames, test_im_ids)) #(!) test_im_ids as test labels
         return cls(path, datasets, bs, num_workers, classes=classes, balance=weights)
 
 
@@ -727,44 +714,51 @@ def compute_adjusted_weights_csv(x,y):
     """
     
 
-    # This returns the balance source dictionary
-    d = labels_dict(x,y)
+    # # This returns the balance source dictionary
+    # d = labels_dict(x,y)
     
-    # for key, item in d.items():
-    #     print("Length of ", key, "is: ", len(d[key]))
+    # # for key, item in d.items():
+    # #     print("Length of ", key, "is: ", len(d[key]))
 
-    # counting occurrences per label
-    occurrences = [] # how many times each label occurrs
-    labels = [] # list of all labels
-    l_o = {}
-    for key in d:
-        occurrences.append(len(d[key]))
-        labels.append(key)
-        l_o[key] = [len(d[key])] # l_o[key][0] = occurrences
+    # # counting occurrences per label
+    # occurrences = [] # how many times each label occurrs
+    # labels = [] # list of all labels
+    # l_o = {}
+    # for key in d:
+    #     occurrences.append(len(d[key]))
+    #     labels.append(key)
+    #     l_o[key] = [len(d[key])] # l_o[key][0] = occurrences
 
-    # print(l_o)
+    # # print(l_o)
 
-    # list of all names with their label (no multiclass) => duplicates in list
-    reverse_d = [[],[]]
-    for v, k in d.items():
-        if len(k)>1:
-            for item in k:
-                reverse_d[0].append(item)
-                reverse_d[1].append(v)
-        else:
-            reverse_d[0].append(k)
-            reverse_d[1].append(v)
+    # # list of all names with their label (no multiclass) => duplicates in list
+    # reverse_d = [[],[]]
+    # for v, k in d.items():
+    #     if len(k)>1:
+    #         for item in k:
+    #             reverse_d[0].append(item)
+    #             reverse_d[1].append(v)
+    #     else:
+    #         reverse_d[0].append(k)
+    #         reverse_d[1].append(v)
                 
-    # calculating weights
+    # # calculating weights
 
     
     
-    weights = np.zeros(len(reverse_d[1]))
-    probs = [100 * count/sum(occurrences) for count in occurrences]
+    # weights = np.zeros(len(reverse_d[1]))
+    # probs = [100 * count/sum(occurrences) for count in occurrences]
 
     #####################################################################
 
-    ys = y
+    print(f"Calculating weights...")
+
+    if len(y.shape) == 1:
+        print('one-hot encoding single-labels...')
+        num_lbls = len(pd.Series(y).unique())
+        ys = n_hot_lbls = np.array([n_hot(i, num_lbls) for i in y])
+    else: ys = y
+
     # print(f"ys shape: {ys.shape}")
     # print(ys.shape[1])
 
@@ -790,7 +784,7 @@ def compute_adjusted_weights_csv(x,y):
     # print(f"weights_per_im: {weights_per_im[:10]}")
 
     weights = weights_per_im
-    
+    print(f"Weights calculated successfully!")
     return weights
         
 
