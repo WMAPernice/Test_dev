@@ -19,8 +19,9 @@ from .models.inceptionv4 import inceptionv4
 from .models.nasnet import nasnetalarge
 from .models.fa_resnet import *
 
-# resnet_models with dynamic input channels
-from .models.resnet_chanflex import resnet18_c, resnet34_c, resnet50_c, resnet101_c, resnet152_c #(!)
+# models with dynamic input channels
+from .models.multichan_resnet import resnet18_c, resnet34_c, resnet50_c, resnet101_c, resnet152_c #(!)
+from .models.multichan_densenet import densenet121_c, densenet169_c, densenet201_c, densenet161_c #(!)
 
 import warnings
 warnings.filterwarnings('ignore', message='Implicit dimension choice', category=UserWarning)
@@ -94,3 +95,19 @@ def vgg16(pre): return children(vgg16_bn(pre))[0]
                'https://arxiv.org/pdf/1409.1556.pdf')
 def vgg19(pre): return children(vgg19_bn(pre))[0]
 
+################ (!)
+@_fastai_model('Densenet-121', 'Densely Connected Convolutional Networks',
+               'https://arxiv.org/pdf/1608.06993.pdf')
+def dn121_c(pre, ch): return children(densenet121_c(pre, ch))[0]
+
+@_fastai_model('Densenet-169', 'Densely Connected Convolutional Networks',
+               'https://arxiv.org/pdf/1608.06993.pdf')
+def dn161_c(pre, ch): return children(densenet161_c(pre, ch))[0]
+
+@_fastai_model('Densenet-161', 'Densely Connected Convolutional Networks',
+               'https://arxiv.org/pdf/1608.06993.pdf')
+def dn169_c(pre, ch): return children(densenet169_c(pre, ch))[0]
+
+@_fastai_model('Densenet-201', 'Densely Connected Convolutional Networks',
+               'https://arxiv.org/pdf/1608.06993.pdf')
+def dn201_c(pre, ch): return children(densenet201_c(pre, ch))[0]
