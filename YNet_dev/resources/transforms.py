@@ -824,7 +824,7 @@ class Transforms:
 
         if crop_type is not None: #(!) no more default cropping...
             if crp_sz is not None:
-                crop_tfm = crop_fn_lu[crop_type](crp_sz, tfm_y, sz_y)
+                crop_tfm = crop_fn_lu[crop_type](int(sz[1] * crp_sz), tfm_y, sz_y)
             else:
                 crop_tfm = crop_fn_lu[crop_type](sz[1], tfm_y, sz_y)
             self.tfms.append(crop_tfm)
