@@ -12,10 +12,10 @@ class Callback:
     def on_train_begin(self): pass
     def on_batch_begin(self): pass
     def on_phase_begin(self): pass
-    def on_epoch_end(self, metrics): pass
+    def on_epoch_end(self, metrics, glob_step): pass
     def on_phase_end(self): pass
     def on_batch_end(self, metrics): pass
-    def on_train_end(self): pass
+    def on_train_end(self, *args): pass
 
 # Useful for maintaining status of a long-running job.
 # 
@@ -48,12 +48,12 @@ class LoggingCallback(Callback):
     def on_batch_end(self, metrics):
         self.log(str(self.batch)+"\ton_batch_end: "+str(metrics))
         self.batch += 1
-    def on_train_end(self):
+    def on_train_end(self, **kwargs):
         self.log("\ton_train_end")
         self.f.close()
     def log(self, string):
-        self.f.write(time.strftime("%Y-%m-%dT%H:%M:%S")+"\t"+string+"\n")
-        
+        self.f.write(time.strftime("%Y-%m-%dT%H:%M:%S")+"\t"+string+"\n") 
+       
 class LossRecorder(Callback):
     '''
     Saves and displays loss functions and other metrics. 
@@ -64,6 +64,7 @@ class LossRecorder(Callback):
         self.layer_opt=layer_opt
         self.init_lrs=np.array(layer_opt.lrs)
         self.save_path, self.record_mom, self.metrics = save_path, record_mom, metrics
+        self.glob_step = []
 
     def on_train_begin(self):
         self.losses,self.lrs,self.iterations = [],[],[]
@@ -73,9 +74,10 @@ class LossRecorder(Callback):
         self.iteration = 0
         self.epoch = 0
 
-    def on_epoch_end(self, metrics):
+    def on_epoch_end(self, metrics, glob_step):
         self.epoch += 1
         self.save_metrics(metrics)
+        self.glob_step.append(glob_step)
 
     def on_batch_end(self, loss):
         self.iteration += 1
@@ -86,6 +88,32 @@ class LossRecorder(Callback):
             self.save_metrics(loss[1:])
         else: self.losses.append(loss)
         if self.record_mom: self.momentums.append(self.layer_opt.mom)
+
+    def on_train_end(self, save_path):
+        self.save_path = save_path
+
+        _iter_log = [[self.iterations[i], self.losses[i], self.lrs[i]] for i in range(len(self.iterations))]
+        _epoch_log = [[self.glob_step[i], self.val_losses[i], self.rec_metrics[i]] for i in range(len(self.glob_step))]
+
+        _iter_log = pd.DataFrame(_iter_log, columns=["Iterations", 'trn_oss', 'Lr'])
+        _epoch_log = pd.DataFrame(_epoch_log, columns=['Global_step','val_loss','metric'])
+
+        if os.path.isfile(self.save_path + '/tmp/iter_log.csv'):
+            print('appending existing log-files...')
+            # iter_log = pd.read_csv(self.save_path + '/tmp/iter_log.csv')
+            # epoch_log = pd.read_csv(self.save_path + '/tmp/epoch_log.csv')
+            # iter_log.append(_iter_log)
+            # epoch_log.append(_epoch_log)
+            _iter_log.to_csv(self.save_path + '/tmp/iter_log.csv', mode='a', header=False, index=False)
+            _epoch_log.to_csv(self.save_path + '/tmp/epoch_log.csv', mode='a', header=False, index=False)
+
+        else:
+            print('creating log-files...')
+            _iter_log.to_csv(self.save_path + '/tmp/iter_log.csv', index=False) 
+            _epoch_log.to_csv(self.save_path + '/tmp/epoch_log.csv', index=False)
+
+        print(f"log-files saved to: {self.save_path}")
+
 
     def save_metrics(self,vals):
         self.val_losses.append(vals[0][0] if isinstance(vals[0], Iterable) else vals[0])
@@ -373,7 +401,7 @@ class SaveBestModel(LossRecorder):
             self.best_loss = loss
             self.model.save(f'{self.name}')
         
-    def on_epoch_end(self, metrics):
+    def on_epoch_end(self, metrics, glob_step):
         super().on_epoch_end(metrics)
         self.save_method(metrics)
 
@@ -437,7 +465,7 @@ class WeightDecaySchedule(Callback):
         # We have to save the existing weights before the optimizer changes the values
         self.iteration += 1
 
-    def on_epoch_end(self, metrics):
+    def on_epoch_end(self, metrics, glob_step):
         self.epoch += 1
 
 class DecayType(IntEnum):

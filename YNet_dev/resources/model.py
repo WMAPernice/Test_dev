@@ -117,7 +117,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
        n_epochs(int or list): number of epochs (or list of number of epochs)
        crit: loss function to optimize. Example: F.cross_entropy
     """
-    metrics_data = data
+    metrics_data = data #(!)
 
     all_val = kwargs.pop('all_val') if 'all_val' in kwargs else False
     get_ep_vals = kwargs.pop('get_ep_vals') if 'get_ep_vals' in kwargs else False
@@ -208,7 +208,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
         if not all_val:
             vals = validate(model_stepper, cur_data.val_dl, metrics)
             stop = False
-            for cb in callbacks: stop = stop or cb.on_epoch_end(vals)
+            for cb in callbacks: stop = stop or cb.on_epoch_end(vals, GLOBAL_STEP) #(!)
             if swa_model is not None:
                 if (epoch + 1) >= swa_start and (
                         (epoch + 1 - swa_start) % swa_eval_freq == 0 or epoch == tot_epochs - 1):
@@ -233,7 +233,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
             break
 
     for cb in callbacks:
-        cb.on_train_end()
+        cb.on_train_end(metrics_data.path)
     if get_ep_vals:
         return vals, ep_vals
     else:
