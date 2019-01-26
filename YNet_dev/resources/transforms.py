@@ -818,6 +818,7 @@ class Transforms:
                  tfm_y=TfmType.NO, sz_y=None):
         if sz_y is None: sz_y = sz[1]
         self.sz, self.denorm, self.norm, self.sz_y = sz[1], denorm, normalizer, sz_y
+        self.crp_sz = crp_sz
         self.ch = sz[0]
         self.tfms = tfms
 
@@ -939,7 +940,7 @@ def tfms_from_stats(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=No
     if aug_tfms is None: aug_tfms=[]
     tfm_norm = Normalize(stats, tfm_y if tfm_y else None) if stats is not None else None
     tfm_denorm = Denormalize(stats) if stats is not None else None
-    
+
     # val_crop = CropType.CENTER if crop_type in (CropType.RANDOM,CropType.GOOGLENET) else crop_type
     val_crop = CropType.CENTER if crop_type is CropType.GOOGLENET else crop_type
     print(f'val_crop is: {val_crop}')
