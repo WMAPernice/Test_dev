@@ -814,14 +814,20 @@ crop_fn_lu = {CropType.RANDOM: RandomCrop, CropType.CENTER: CenterCrop, CropType
 
 
 class Transforms:
-    def __init__(self, sz, tfms, normalizer, denorm, crop_type=CropType.CENTER,
+    def __init__(self, sz, tfms, normalizer, denorm, crop_type=None, crp_sz=None, #(!) crop_type=None
                  tfm_y=TfmType.NO, sz_y=None):
         if sz_y is None: sz_y = sz[1]
         self.sz, self.denorm, self.norm, self.sz_y = sz[1], denorm, normalizer, sz_y
         self.ch = sz[0]
-        crop_tfm = crop_fn_lu[crop_type](sz[1], tfm_y, sz_y)
         self.tfms = tfms
-        self.tfms.append(crop_tfm)
+
+        if crop_type is not None: #(!) no more default cropping...
+            if crp_sz is not None:
+                crop_tfm = crop_fn_lu[crop_type](crp_sz, tfm_y, sz_y)
+            else:
+                crop_tfm = crop_fn_lu[crop_type](sz[1], tfm_y, sz_y)
+            self.tfms.append(crop_tfm)
+
         if normalizer is not None: self.tfms.append(normalizer)
         self.tfms.append(ChannelOrder(tfm_y))
 
@@ -836,7 +842,7 @@ class Transforms:
     def __repr__(self): return str(self.tfms)
 
 
-def image_gen(normalizer, denorm, sz, tfms=None, max_zoom=None, pad=0, crop_type=None,
+def image_gen(normalizer, denorm, sz, tfms=None, max_zoom=None, pad=0, crop_type=None, crp_sz=None, #(!) crop_type=None
               tfm_y=None, sz_y=None, pad_mode=cv2.BORDER_REFLECT, scale=None):
     """
     Generate a standard set of transformations
@@ -886,7 +892,7 @@ def image_gen(normalizer, denorm, sz, tfms=None, max_zoom=None, pad=0, crop_type
         scale = [scale]
     if pad: scale.append(AddPadding(pad, mode=pad_mode))
     if crop_type != CropType.GOOGLENET: tfms = scale + tfms
-    return Transforms(sz, tfms, normalizer, denorm, crop_type,
+    return Transforms(sz, tfms, normalizer, denorm, crop_type, crp_sz=crp_sz,
                       tfm_y=tfm_y, sz_y=sz_y)
 
 
@@ -906,22 +912,26 @@ inception_stats = A([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 inception_models = (inception_4, inceptionresnet_2)
 
 
-def tfms_with_IntNorm(sz, stats=None, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
+def tfms_with_IntNorm(sz, stats=None, aug_tfms=None, max_zoom=None, pad=0, crop_type= None, crp_sz = None, #(!) crop_type, crp_sz
                     tfm_y=None, sz_y=None, pad_mode=cv2.BORDER_REFLECT, norm_y=True, scale=None, IntNorm=True):
     """ Given the statistics of the training image sets, returns separate training and validation transform functions
     """
     if aug_tfms is None: aug_tfms=[]
     tfm_norm = Normalize(stats, IntNorm, tfm_y if tfm_y else None) if stats is not None else None
     tfm_denorm = Denormalize(stats) if stats is not None else None
-    val_crop = CropType.CENTER if crop_type in (CropType.RANDOM,CropType.GOOGLENET) else crop_type
-    val_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=val_crop,
+
+    # val_crop = CropType.CENTER if crop_type in (CropType.RANDOM,CropType.GOOGLENET) else crop_type
+    val_crop = CropType.CENTER if crop_type is CropType.GOOGLENET else crop_type
+    print(f'val_crop is: {val_crop}') #(!)
+
+    val_tfm = image_gen(tfm_norm, tfm_denorm, sz, crp_sz=crp_sz, pad=pad, crop_type=val_crop,
                         tfm_y=tfm_y, sz_y=sz_y, scale=scale)
-    trn_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=crop_type,
+    trn_tfm = image_gen(tfm_norm, tfm_denorm, sz, crp_sz=crp_sz, pad=pad, crop_type=crop_type,
             tfm_y=tfm_y, sz_y=sz_y, tfms=aug_tfms, max_zoom=max_zoom, pad_mode=pad_mode, scale=scale)
     return trn_tfm, val_tfm 
 
 
-def tfms_from_stats(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
+def tfms_from_stats(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=None, crp_sz = None, #(!) crop_type
                     tfm_y=None, sz_y=None, pad_mode=cv2.BORDER_REFLECT, norm_y=True, scale=None):
     """ Given the statistics of the training image sets, returns separate training and validation transform functions
     """
@@ -929,15 +939,19 @@ def tfms_from_stats(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=Cr
     if aug_tfms is None: aug_tfms=[]
     tfm_norm = Normalize(stats, tfm_y if tfm_y else None) if stats is not None else None
     tfm_denorm = Denormalize(stats) if stats is not None else None
-    val_crop = CropType.CENTER if crop_type in (CropType.RANDOM,CropType.GOOGLENET) else crop_type
-    val_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=val_crop,
+    
+    # val_crop = CropType.CENTER if crop_type in (CropType.RANDOM,CropType.GOOGLENET) else crop_type
+    val_crop = CropType.CENTER if crop_type is CropType.GOOGLENET else crop_type
+    print(f'val_crop is: {val_crop}')
+
+    val_tfm = image_gen(tfm_norm, tfm_denorm, sz, crp_sz=crp_sz, pad=pad, crop_type=val_crop,
                         tfm_y=tfm_y, sz_y=sz_y, scale=scale)
-    trn_tfm = image_gen(tfm_norm, tfm_denorm, sz, pad=pad, crop_type=crop_type,
+    trn_tfm = image_gen(tfm_norm, tfm_denorm, sz, crp_sz=crp_sz, pad=pad, crop_type=crop_type,
             tfm_y=tfm_y, sz_y=sz_y, tfms=aug_tfms, max_zoom=max_zoom, pad_mode=pad_mode, scale=scale)
     return trn_tfm, val_tfm 
 
 
-def tfms_from_model(f_model, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
+def tfms_from_model(f_model, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=None, crp_sz = None, #(!) crop_type
                     tfm_y=None, sz_y=None, pad_mode=cv2.BORDER_REFLECT, norm_y=True, scale=None):
     """ Returns separate transformers of images for training and validation.
     Transformers are constructed according to the image statistics given b y the model. (See tfms_from_stats)
@@ -946,5 +960,5 @@ def tfms_from_model(f_model, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=
         f_model: model, pretrained or not pretrained
     """
     stats = inception_stats if f_model in inception_models else imagenet_stats
-    return tfms_from_stats(stats, sz, aug_tfms, max_zoom=max_zoom, pad=pad, crop_type=crop_type,
+    return tfms_from_stats(stats, sz, aug_tfms, max_zoom=max_zoom, pad=pad, crop_type=crop_type, crp_sz=crp_sz,
                            tfm_y=tfm_y, sz_y=sz_y, pad_mode=pad_mode, norm_y=norm_y, scale=scale)
