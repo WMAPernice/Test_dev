@@ -210,7 +210,7 @@ class Normalize:
     """
 
     def __init__(self, stats, IntNorm=False, tfm_y=TfmType.NO):
-        
+        if IntNorm: print('Internal Normalization')
         if stats is None:
             self.d = None 
         elif isinstance(stats, dict):
@@ -229,7 +229,6 @@ class Normalize:
         if self.IntNorm:
             m = np.array(np.mean(x, axis=(0,1)), dtype=np.float32)
             s = np.array(np.std(x, axis=(0,1)), dtype=np.float32)
-            # print('IntNorm')
         else:
             if self.d and y is not None:
                 if src_idx is not None:
@@ -880,6 +879,7 @@ def image_gen(normalizer, denorm, sz, tfms=None, max_zoom=None, pad=0, crop_type
     --------
      Transforms: the transformer object returned by this function
     """
+    if normalizer is None: print('WARNING -- NORMALIZER IS NONE!!')
     if tfm_y is None: tfm_y = TfmType.NO
     if tfms is None:
         tfms = []
@@ -913,14 +913,14 @@ inception_stats = A([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 inception_models = (inception_4, inceptionresnet_2)
 
 
-def tfms_with_IntNorm(sz, stats=None, aug_tfms=None, max_zoom=None, pad=0, crop_type= None, crp_sz = None, #(!) crop_type, crp_sz
+def tfms_with_IntNorm(sz, aug_tfms=None, max_zoom=None, pad=0, crop_type= None, crp_sz = None, #(!) crop_type, crp_sz
                     tfm_y=None, sz_y=None, pad_mode=cv2.BORDER_REFLECT, norm_y=True, scale=None, IntNorm=True):
     """ Given the statistics of the training image sets, returns separate training and validation transform functions
     """
+    stats = None #(!) temporary dummy: FIXME
     if aug_tfms is None: aug_tfms=[]
-    tfm_norm = Normalize(stats, IntNorm, tfm_y if tfm_y else None) if stats is not None else None
-    tfm_denorm = Denormalize(stats) if stats is not None else None
-
+    tfm_norm = Normalize(stats, IntNorm, tfm_y if tfm_y else None)
+    tfm_denorm =  None
     # val_crop = CropType.CENTER if crop_type in (CropType.RANDOM,CropType.GOOGLENET) else crop_type
     val_crop = CropType.CENTER if crop_type is CropType.GOOGLENET else crop_type
     print(f'val_crop is: {val_crop}') #(!)
