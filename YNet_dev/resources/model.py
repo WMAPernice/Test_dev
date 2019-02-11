@@ -234,6 +234,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
 
     for cb in callbacks:
         cb.on_train_end(metrics_data.path)
+        # cb.on_train_end()
     if get_ep_vals:
         return vals, ep_vals
     else:
