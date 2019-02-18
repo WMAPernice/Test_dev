@@ -67,6 +67,7 @@ class LossRecorder(Callback):
         self.glob_step = []
 
     def on_train_begin(self):
+        self.dude = 'dude'
         self.losses,self.lrs,self.iterations = [],[],[]
         self.val_losses, self.rec_metrics = [], []
         if self.record_mom:
@@ -91,7 +92,7 @@ class LossRecorder(Callback):
 
     def on_train_end(self, save_path):
         self.save_path = save_path
-
+        
         _iter_log = [[self.iterations[i], self.losses[i], self.lrs[i]] for i in range(len(self.iterations))]
         _epoch_log = [[self.glob_step[i], self.val_losses[i], self.rec_metrics[i]] for i in range(len(self.glob_step))]
 
@@ -100,10 +101,6 @@ class LossRecorder(Callback):
 
         if os.path.isfile(self.save_path + '/tmp/iter_log.csv'):
             print('appending existing log-files...')
-            # iter_log = pd.read_csv(self.save_path + '/tmp/iter_log.csv')
-            # epoch_log = pd.read_csv(self.save_path + '/tmp/epoch_log.csv')
-            # iter_log.append(_iter_log)
-            # epoch_log.append(_epoch_log)
             _iter_log.to_csv(self.save_path + '/tmp/iter_log.csv', mode='a', header=False, index=False)
             _epoch_log.to_csv(self.save_path + '/tmp/epoch_log.csv', mode='a', header=False, index=False)
 
@@ -194,6 +191,7 @@ class LR_Finder(LR_Updater):
         ratio = end_lr/layer_opt.lr
         self.lr_mult = (ratio/nb) if linear else ratio**(1/nb)
         super().__init__(layer_opt,metrics=metrics)
+        self.is_finder = True
 
     def on_train_begin(self):
         super().on_train_begin()
@@ -402,10 +400,10 @@ class SaveBestModel(LossRecorder):
             self.model.save(f'{self.name}')
         
     def on_epoch_end(self, metrics, glob_step):
-        super().on_epoch_end(metrics)
+        super().on_epoch_end(metrics, glob_step)
         self.save_method(metrics)
 
-
+ 
 class WeightDecaySchedule(Callback):
     def __init__(self, layer_opt, batch_per_epoch, cycle_len, cycle_mult, n_cycles, norm_wds=False, wds_sched_mult=None):
         """
