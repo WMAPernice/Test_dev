@@ -96,7 +96,7 @@ class LossRecorder(Callback):
         _iter_log = [[self.iterations[i], self.losses[i], self.lrs[i]] for i in range(len(self.iterations))]
         _epoch_log = [[self.glob_step[i], self.val_losses[i], self.rec_metrics[i]] for i in range(len(self.glob_step))]
 
-        _iter_log = pd.DataFrame(_iter_log, columns=["Iterations", 'trn_oss', 'Lr'])
+        _iter_log = pd.DataFrame(_iter_log, columns=["Iterations", 'trn_loss', 'Lr'])
         _epoch_log = pd.DataFrame(_epoch_log, columns=['Global_step','val_loss','metric'])
 
         if os.path.isfile(self.save_path + '/tmp/iter_log.csv'):
