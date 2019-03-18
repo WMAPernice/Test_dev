@@ -11,26 +11,29 @@ for (i=0; i<files.length; i++) {
 	getDimensions(width, height, channels, slices, frames);
 	origTitle = getTitle();
 	run("Split Channels");
-
+	
+	// select channels to close
 	selectImage("C1-" + origTitle);
 	close();
-	selectImage("C3-" + origTitle);
+	selectImage("C2-" + origTitle);
 	close();
 	selectImage("C4-" + origTitle);
 	close();
 	
+	// max-project or extract slice
 	selectImage("C5-" + origTitle);
 	run("Make Substack...","slices=14");
 	
-	selectImage("C2-" + origTitle);
+	selectImage("C3-" + origTitle);
 	run("Z Project...", "start=1 stop="+slices+" projection=[Max Intensity]");
 
-
+	// close remaining originals
 	selectImage("C5-" + origTitle);
 	close();
-	selectImage("C2-" + origTitle);
+	selectImage("C3-" + origTitle);
 	close();
-
+	
+	// stack
 	run ("Images to Stack", "name=[Stack]");
 	save(targetFolder + "/" + origTitle + "stack.tif");
 	
